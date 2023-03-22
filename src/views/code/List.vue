@@ -83,17 +83,22 @@ onMounted(() => {
 
 //Data formater
 function groupCodes(data) {
-    let groupedData = data.reduce((groups, item) => {
-        const group = groups[item.code_group_id] || [];
-        group.push(item);
-        groups[item.code_group_id] = group;
+    let groupedData = data.reduce((groups, code) => {
+        const group = groups[code.codeGroup.id] || [];
+        code.usage = code.annotations.length;
+        group.push(code);
+        groups[code.codeGroup.id] = group;
         return groups;
     }, {});
     let result = Object.entries(groupedData).map((entry) => {
         let id = entry[0]; //group id
         let data = entry[1]; //codes in group
-        let color = codeGroups.value.find((group) => group.id == id).color;
-        let name = codeGroups.value.find((group) => group.id == id).name;
+        let color = codeGroups.value.find(
+            (codeGroup) => codeGroup.id == id
+        ).color;
+        let name = codeGroups.value.find(
+            (codeGroup) => codeGroup.id == id
+        ).name;
         return { id, name, data, color };
     });
     return result;
@@ -102,7 +107,7 @@ function ungroupCodes(data) {
     let result = [];
     data.forEach((group) => {
         group.data.forEach((code) => {
-            code.code_group_id = group.id;
+            code.usage = code.annotations.length;
             result.push(code);
         });
     });
@@ -186,7 +191,7 @@ function dragChange(event) {
 //Data
 const columns = [
     { title: "Name", dataIndex: "name" },
-    { title: "Group", dataIndex: "code_group" },
+    { title: "Group", dataIndex: "codeGroup.name" },
     { title: "Owner", dataIndex: "owner" },
     { title: "Usage", dataIndex: "usage" },
 ];

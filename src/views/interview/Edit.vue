@@ -196,7 +196,7 @@ function annotationsInParagraph(paragraph) {
         return result;
     } else {
         annotations.value.forEach((annotation) => {
-            if (annotation.paragraphId == paragraph.id) {
+            if (annotation.paragraph.id == paragraph.id) {
                 result.push(annotation);
             }
         });

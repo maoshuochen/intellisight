@@ -3,7 +3,7 @@
         <a-tag
             class="tag"
             v-for="code in annotation.codes"
-            :color="code.color"
+            :color="code.codeGroup.color"
             @click="showCodePopMenu"
             >{{ code.name }}</a-tag
         >

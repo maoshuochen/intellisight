@@ -5,7 +5,7 @@
             <a-tag
                 v-for="code in selectedCodes"
                 :key="code.id"
-                :color="code.color"
+                :color="code.codeGroup.color"
                 closable
                 @close="deleteSelectedCode(code)"
             >
@@ -13,11 +13,20 @@
             </a-tag>
         </a-space>
         <p class="subtitle" v-if="predictCodes">Recommendation</p>
-        <a-space wrap v-if="predictCodes">
+        <a-skeleton :animation="true" v-if="isLoadingClassification">
+            <a-space
+                direction="vertical"
+                :style="{ width: '100%' }"
+                size="small"
+            >
+                <a-skeleton-line line-height="15" :rows="2" />
+            </a-space>
+        </a-skeleton>
+        <a-space wrap v-if="predictCodes && !isLoadingClassification">
             <a-tag
                 v-for="code in predictCodes"
                 :key="code.id"
-                :color="code.color"
+                :color="code.codeGroup.color"
                 :bordered="code.bordered"
                 @click="addSelectedCode(code)"
             >
@@ -42,6 +51,7 @@ const codes = ref([]);
 const text = ref("");
 const predictCodes = ref([]);
 const selectedCodes = ref([]);
+const isLoadingClassification = ref(true);
 
 //Render
 
@@ -91,6 +101,7 @@ onMounted(() => {
                         found.bordered = false;
                     }
                     predictCodes.value.push(found);
+                    isLoadingClassification.value = false;
                 });
             });
     });
