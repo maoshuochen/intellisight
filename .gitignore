@@ -1,0 +1,9 @@
+__pycache__/
+Lib/
+Lib/site-packages
+Include/
+Model/
+Scripts/
+share/
+/.env
+/pyvenv.cfg
