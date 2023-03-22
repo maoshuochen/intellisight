@@ -1,3 +1,4 @@
+from unittest import result
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -22,7 +23,9 @@ db = SQLAlchemy(app)
 
 metadata = MetaData()
 Base = automap_base()
+
 with app.app_context():
+    # Init database
     Base.prepare(autoload_with=db.engine)
     print(Base.classes.keys())
     Interview = Base.classes.interview
@@ -31,12 +34,19 @@ with app.app_context():
     CodeGroup = Base.classes.code_group
     Paragraph = Base.classes.paragraph
     HighlightMeta = Base.classes.highlight_meta
-    # Add custom relationships after calling prepare method
+    # Add custom relationships
+    # annotation-to-highlight_meta  one-to-many
     Annotation.start_meta = relationship(
-        "highlight_meta", foreign_keys="annotation.start_meta_id")
+        "highlight_meta", foreign_keys="annotation.start_meta_id", overlaps='highlight_meta,annotation_collection')
     Annotation.end_meta = relationship(
-        "highlight_meta", foreign_keys="annotation.end_meta_id")
-    Annotation.codes = relationship('code', secondary='annotation_code_merge')
+        "highlight_meta", foreign_keys="annotation.end_meta_id", overlaps='highlight_meta,annotation_collection')
+    # annotation-to-code  many-to-many
+    Annotation.codes = relationship(
+        'code', secondary='annotation_code_merge', back_populates='annotations', overlaps='annotation,code,annotation_code_merge_collection')
+    Code.annotations = relationship(
+        'annotation', secondary='annotation_code_merge', back_populates='codes', overlaps='annotation,code,annotation_code_merge_collection')
+
+# Schemas
 
 
 class InterviewSchema(SQLAlchemyAutoSchema):
@@ -78,7 +88,7 @@ class ParagraphSchema(SQLAlchemyAutoSchema):
 class AnnotationSchema(SQLAlchemyAutoSchema):
     class Meta:
         model = Annotation
-        include_relationships = True
+        include_relationships = False
         load_instance = True
     codes = fields.Nested(CodeSchema, many=True)
     paragraph = fields.Nested(ParagraphSchema)
@@ -86,15 +96,20 @@ class AnnotationSchema(SQLAlchemyAutoSchema):
     end_meta = fields.Nested(HighlightMetaSchema)
 
 
-def query_all(Table, Schema):
+def serialization(querys, Schema):
     result = []
-    querys = db.session.query(Table).all()
     for query in querys:
         dump_data = Schema().dump(query)
         result.append(humps.camelize(dump_data))
     return result
 
 
+def query_all(Table, Schema):
+    querys = db.session.query(Table).all()
+    return serialization(querys, Schema)
+
+
+# Endpoints
 @app.route("/interview", methods=['GET', 'POST', 'PUT'])
 def interview():
     if request.method == 'GET':
@@ -119,6 +134,14 @@ def annotation():
         return query_all(Annotation, AnnotationSchema)
     if request.method == 'POST':
         pass
+
+
+@app.route('/annotation/<paragraph_id>', methods=['GET'])
+def annotationByParagraphId(paragraph_id):
+    if request.method == 'GET':
+        querys = db.session.query(Annotation).filter_by(
+            paragraph_id=str(paragraph_id))
+        return serialization(querys, AnnotationSchema)
 
 
 @app.route('/code-group', methods=['GET', 'POST'])
