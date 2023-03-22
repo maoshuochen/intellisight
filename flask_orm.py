@@ -10,11 +10,14 @@ from pprint import pprint
 from dotenv import load_dotenv
 import os
 import humps  # pyhumps
+# custom
+from nlp import nlp
 
 
 load_dotenv()
 
 app = Flask(__name__)
+app.register_blueprint(nlp)
 CORS(app)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.getenv('DATABASE_PATH')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -69,6 +72,8 @@ class CodeSchema(SQLAlchemyAutoSchema):
         include_relationships = False
         load_instance = True
     code_group = fields.Nested(CodeGroupSchema)
+    annotations = fields.Nested(
+        lambda: AnnotationSchema(exclude=('codes',)), many=True)
 
 
 class HighlightMetaSchema(SQLAlchemyAutoSchema):
@@ -90,7 +95,7 @@ class AnnotationSchema(SQLAlchemyAutoSchema):
         model = Annotation
         include_relationships = False
         load_instance = True
-    codes = fields.Nested(CodeSchema, many=True)
+    codes = fields.Nested(CodeSchema(exclude=('annotations',)), many=True)
     paragraph = fields.Nested(ParagraphSchema)
     start_meta = fields.Nested(HighlightMetaSchema)
     end_meta = fields.Nested(HighlightMetaSchema)
