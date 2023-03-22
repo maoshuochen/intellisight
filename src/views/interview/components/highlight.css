@@ -1,0 +1,22 @@
+.highlight-wrap {
+    cursor: pointer;
+    border-bottom: 2px solid rgb(var(--arcoblue-6));
+}
+
+.highlight-wrap-blue {
+    border-bottom: 2px solid rgb(var(--arcoblue-6));
+}
+
+.highlight-wrap-hover-blue {
+    background-color: rgb(var(--arcoblue-1));
+}
+
+.highlight-wrap-purple {
+    border-bottom: 2px solid rgb(var(--purple-6));
+}
+
+.highlight-wrap-hover-purple {
+    background-color: rgb(var(--purple-1));
+}
+
+/* scss? */
