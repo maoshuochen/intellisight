@@ -1,10 +1,13 @@
 from flask import Blueprint, request
-import torch
 from transformers import pipeline
 import clueai  # https://www.clueai.cn/admin/api
-cl = clueai.Client('KxPVwVCtwio7flCFyo-FK1110111101')
+from dotenv import load_dotenv
+import os
 
+
+load_dotenv()
 nlp = Blueprint('nlp', __name__)
+cl = clueai.Client(os.getenv('CLUEAI_TOKEN'))
 
 
 @nlp.route('/predict/classify', methods=['POST'])

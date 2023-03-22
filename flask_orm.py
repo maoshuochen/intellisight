@@ -7,8 +7,9 @@ from sqlalchemy.orm import relationship
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
 from pprint import pprint
 from dotenv import load_dotenv
-import humps  # pyhumps
 import os
+import humps  # pyhumps
+
 
 load_dotenv()
 
