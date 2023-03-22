@@ -36,6 +36,7 @@ with app.app_context():
         "highlight_meta", foreign_keys="annotation.start_meta_id")
     Annotation.end_meta = relationship(
         "highlight_meta", foreign_keys="annotation.end_meta_id")
+    Annotation.codes = relationship('code', secondary='annotation_code_merge')
 
 
 class InterviewSchema(SQLAlchemyAutoSchema):
@@ -79,12 +80,13 @@ class AnnotationSchema(SQLAlchemyAutoSchema):
         model = Annotation
         include_relationships = True
         load_instance = True
+    codes = fields.Nested(CodeSchema, many=True)
     paragraph = fields.Nested(ParagraphSchema)
     start_meta = fields.Nested(HighlightMetaSchema)
     end_meta = fields.Nested(HighlightMetaSchema)
 
 
-def get_all(Table, Schema):
+def query_all(Table, Schema):
     result = []
     querys = db.session.query(Table).all()
     for query in querys:
@@ -96,25 +98,25 @@ def get_all(Table, Schema):
 @app.route("/interview", methods=['GET', 'POST', 'PUT'])
 def interview():
     if request.method == 'GET':
-        return get_all(Interview, InterviewSchema)
+        return query_all(Interview, InterviewSchema)
 
 
 @app.route("/paragraph", methods=['GET', 'POST', 'PUT'])
 def paragraph():
     if request.method == 'GET':
-        return get_all(Paragraph, ParagraphSchema)
+        return query_all(Paragraph, ParagraphSchema)
 
 
 @app.route("/code", methods=['GET', 'POST', 'PUT'])
 def code():
     if request.method == 'GET':
-        return get_all(Code, CodeSchema)
+        return query_all(Code, CodeSchema)
 
 
 @app.route('/annotation', methods=['GET', 'POST'])
 def annotation():
     if request.method == 'GET':
-        return get_all(Annotation, AnnotationSchema)
+        return query_all(Annotation, AnnotationSchema)
     if request.method == 'POST':
         pass
 
@@ -122,7 +124,7 @@ def annotation():
 @app.route('/code-group', methods=['GET', 'POST'])
 def code_group():
     if request.method == 'GET':
-        return get_all(CodeGroup, CodeGroupSchema)
+        return query_all(CodeGroup, CodeGroupSchema)
     if request.method == 'POST':
         pass
 
