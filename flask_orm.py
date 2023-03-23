@@ -5,27 +5,25 @@ from sqlalchemy import MetaData
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import relationship
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
-from pprint import pprint
-from dotenv import load_dotenv
-import os
+from dotenv import load_dotenv  # python-dotenv
 import humps  # pyhumps
-# custom
+import os
+from pprint import pprint
+# Custom module
 from nlp import nlp
 
-
-load_dotenv()
-
+# Setup
 app = Flask(__name__)
 app.register_blueprint(nlp)
 CORS(app)
+load_dotenv()
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.getenv('DATABASE_PATH')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-
+# Database to ORM
 metadata = MetaData()
 Base = automap_base()
-
 with app.app_context():
     # Init database
     Base.prepare(autoload_with=db.engine)
@@ -37,18 +35,18 @@ with app.app_context():
     Paragraph = Base.classes.paragraph
     HighlightMeta = Base.classes.highlight_meta
     # Add custom relationships
-    # annotation-to-highlight_meta  one-to-many
+    # annotation->highlight_meta  one->many
     Annotation.start_meta = relationship(
         "highlight_meta", foreign_keys="annotation.start_meta_id", overlaps='highlight_meta,annotation_collection')
     Annotation.end_meta = relationship(
         "highlight_meta", foreign_keys="annotation.end_meta_id", overlaps='highlight_meta,annotation_collection')
-    # annotation-to-code  many-to-many
+    # annotation->code  many->many
     Annotation.codes = relationship(
         'code', secondary='annotation_code_merge', back_populates='annotations', overlaps='annotation,code,annotation_code_merge_collection')
     Code.annotations = relationship(
         'annotation', secondary='annotation_code_merge', back_populates='codes', overlaps='annotation,code,annotation_code_merge_collection')
 
-# Schemas
+# Serialization Schemas
 
 
 class InterviewSchema(SQLAlchemyAutoSchema):
@@ -99,6 +97,8 @@ class AnnotationSchema(SQLAlchemyAutoSchema):
     start_meta = fields.Nested(HighlightMetaSchema)
     end_meta = fields.Nested(HighlightMetaSchema)
 
+# Custom functions
+
 
 def serialization(querys, Schema):
     result = []
@@ -108,44 +108,28 @@ def serialization(querys, Schema):
     return result
 
 
+def deserialization(json, Schema):
+    data = humps.decamelize(json)
+    object = Schema().load(data, session=db.session)
+    return object
+
+
 def query_all(Table, Schema):
     querys = db.session.query(Table).all()
     return serialization(querys, Schema)
 
 
-# Endpoints
-@app.route("/interview", methods=['GET', 'POST', 'PUT'])
+# API Endpoints
+@app.route("/interview", methods=['GET', 'POST'])
 def interview():
     if request.method == 'GET':
         return query_all(Interview, InterviewSchema)
 
 
-@app.route("/paragraph", methods=['GET', 'POST', 'PUT'])
+@app.route("/paragraph", methods=['GET', 'POST'])
 def paragraph():
     if request.method == 'GET':
         return query_all(Paragraph, ParagraphSchema)
-
-
-@app.route("/code", methods=['GET', 'POST', 'PUT'])
-def code():
-    if request.method == 'GET':
-        return query_all(Code, CodeSchema)
-
-
-@app.route('/annotation', methods=['GET', 'POST'])
-def annotation():
-    if request.method == 'GET':
-        return query_all(Annotation, AnnotationSchema)
-    if request.method == 'POST':
-        pass
-
-
-@app.route('/annotation/<paragraph_id>', methods=['GET'])
-def annotationByParagraphId(paragraph_id):
-    if request.method == 'GET':
-        querys = db.session.query(Annotation).filter_by(
-            paragraph_id=str(paragraph_id))
-        return serialization(querys, AnnotationSchema)
 
 
 @app.route('/code-group', methods=['GET', 'POST'])
@@ -154,6 +138,45 @@ def code_group():
         return query_all(CodeGroup, CodeGroupSchema)
     if request.method == 'POST':
         pass
+
+
+@app.route("/code", methods=['GET', 'POST'])
+def code():
+    if request.method == 'GET':
+        return query_all(Code, CodeSchema)
+    if request.method == 'POST':
+        new_code = deserialization(request.get_json(), CodeSchema)
+        db.session.add(new_code)
+        db.session.commit()
+        return query_all(Code, CodeSchema)
+
+
+@app.route("/code/<code_id>", methods=['PUT', 'DELETE'])
+def code_by_id(code_id):
+    if request.method == 'PUT':
+        new_code = deserialization(request.get_json(), CodeSchema)
+        old_code = db.session.query(Code).filter_by(id=str(code_id))
+        old_code.code_group = new_code.code_group
+        db.session.commit()
+        return query_all(Code, CodeSchema)
+
+
+@app.route('/annotation', methods=['GET', 'POST'])
+def annotation():
+    if request.method == 'GET':
+        if (request.args.get('paragraph-id')):
+            # url: /annotation?paragraph-id=
+            paragraph_id = request.args.get('paragraph-id')
+            querys = db.session.query(Annotation).filter_by(
+                paragraph_id=str(paragraph_id))
+            return serialization(querys, AnnotationSchema)
+        else:
+            return query_all(Annotation, AnnotationSchema)
+    if request.method == 'POST':
+        annotation = deserialization(request.get_json(), AnnotationSchema)
+        db.session.add(annotation)
+        db.session.commit()
+        return query_all(Annotation, AnnotationSchema)
 
 
 # Enable AutoReload
