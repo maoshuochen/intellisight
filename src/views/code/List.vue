@@ -51,7 +51,8 @@
                                     <a-input
                                         v-model="newCodeName"
                                         placeholder="Code Name"
-                                    ></a-input>
+                                    >
+                                    </a-input>
                                 </template>
                             </a-popconfirm>
                         </div>
@@ -82,40 +83,68 @@ onMounted(() => {
 });
 
 //Data formater
-function groupCodes(data) {
-    let groupedData = data.reduce((groups, code) => {
-        const group = groups[code.codeGroup.id] || [];
-        code.usage = code.annotations.length;
-        group.push(code);
-        groups[code.codeGroup.id] = group;
-        return groups;
-    }, {});
-    let result = Object.entries(groupedData).map((entry) => {
-        let data = entry[1];
-        let id = entry[0];
-        let name = codeGroups.value.find(
-            (codeGroup) => codeGroup.id == id
-        ).name;
-        let color = codeGroups.value.find(
-            (codeGroup) => codeGroup.id == id
-        ).color;
-        return { id, name, data, color };
+function groupCodes(codes) {
+    let groups = codeGroups.value;
+    groups.forEach((group) => (group.data = []));
+    codes.forEach((code) => {
+        let foundGroup = groups.find((group) => group.id == code.codeGroup.id);
+        foundGroup.data.push(code);
     });
-    return result;
+    return groups;
 }
-function ungroupCodes(data) {
-    let result = [];
-    data.forEach((group) => {
+function ungroupCodes(groups) {
+    let codes = [];
+    groups.forEach((group) => {
         group.data.forEach((code) => {
             code.usage = code.annotations.length;
-            result.push(code);
+            codes.push(code);
         });
     });
-    return result;
+    return codes;
 }
 function fontColor(color) {
     return `rgb(var(--${color}-7))`;
 }
+
+//Add new code
+const newCodeName = ref("");
+function addNewCode(groupId) {
+    let codeGroup = codeGroups.value.find((group) => group.id == groupId);
+    const newCode = {
+        name: newCodeName.value,
+        owner: "maoshuochen",
+        codeGroup: codeGroup,
+    };
+    console.log(newCode);
+    let ungroupedCodes = ungroupCodes(codes.value);
+    ungroupedCodes.push(newCode);
+    postCode(newCode);
+    newCodeName.value = "";
+}
+
+//Drag code and update
+const isDragging = ref(false);
+function dragChange(event) {
+    if (event.added) {
+        let updateCode = event.added.element;
+        let newCodeGroup = codes.value.find((group) => {
+            return group.data.find((code) => code.id == updateCode.id);
+        });
+        updateCode.codeGroup = newCodeGroup;
+        delete updateCode.codeGroup.data;
+        delete updateCode.annotations;
+        delete updateCode.usage;
+        putCode(updateCode);
+    }
+}
+
+//Data for Table View
+const columns = [
+    { title: "Name", dataIndex: "name" },
+    { title: "Group", dataIndex: "codeGroup.name" },
+    { title: "Owner", dataIndex: "owner" },
+    { title: "Usage", dataIndex: "usage" },
+];
 
 //Database API
 function getCodes() {
@@ -158,47 +187,6 @@ function getCodeGroup() {
             console.error(error);
         });
 }
-
-//Add new code
-const newCodeName = ref("");
-function addNewCode(groupId) {
-    let codeGroup = codeGroups.value.find((group) => group.id == groupId);
-    const newCode = {
-        name: newCodeName.value,
-        owner: "maoshuochen",
-        codeGroup: codeGroup,
-    };
-    console.log(newCode);
-    let ungroupedCodes = ungroupCodes(codes.value);
-    ungroupedCodes.push(newCode);
-    postCode(newCode);
-    newCodeName.value = "";
-}
-
-//Drag code
-const isDragging = ref(false);
-function dragChange(event) {
-    console.log(event);
-    if (event.added) {
-        let updateCode = event.added.element;
-        let newCodeGroup = codes.value.find((group) => {
-            return group.data.find((code) => code.id == updateCode.id);
-        });
-        updateCode.codeGroup = newCodeGroup;
-        delete updateCode.codeGroup.data;
-        delete updateCode.annotations;
-        delete updateCode.usage;
-        putCode(updateCode);
-    }
-}
-
-//Data
-const columns = [
-    { title: "Name", dataIndex: "name" },
-    { title: "Group", dataIndex: "codeGroup.name" },
-    { title: "Owner", dataIndex: "owner" },
-    { title: "Usage", dataIndex: "usage" },
-];
 </script>
 
 <style scoped>
