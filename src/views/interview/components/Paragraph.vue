@@ -88,9 +88,9 @@ async function initHighlighter() {
             anno.text,
             anno.id.toString()
         );
-        highlightColor.value = `rgb(var(--${anno.codes[0].color}))`;
+        highlightColor.value = `rgb(var(--${anno.codes[0].codeGroup.color}))`;
         highlighter.addClass(
-            `highlight-wrap-${anno.codes[0].color}`,
+            `highlight-wrap-${anno.codes[0].codeGroup.color}`,
             anno.id.toString()
         );
     });
@@ -117,13 +117,13 @@ async function initHighlighter() {
         .on("selection:hover", ({ id }) => {
             if (!props.isEditMode) {
                 let anno = annos.find((anno) => anno.id.toString() == id);
-                let color = anno.codes[0].color;
+                let color = anno.codes[0].codeGroup.color;
                 highlighter.addClass(`highlight-wrap-hover-${color}`, id);
             }
         })
         .on("selection:hover-out", ({ id }) => {
             let anno = annos.find((anno) => anno.id.toString() == id);
-            let color = anno.codes[0].color;
+            let color = anno.codes[0].codeGroup.color;
             highlighter.removeClass(`highlight-wrap-hover-${color}`, id);
         });
 }
@@ -145,9 +145,11 @@ function postAnno(annotation) {
 }
 
 async function getAnnos() {
-    let url = "http://localhost:5000/annotation/" + props.paragraph.id;
+    let url =
+        "http://localhost:5000/annotation?paragraph-id=" + props.paragraph.id;
     let response = await axios.get(url);
     let annos = response.data;
+    console.log(annos);
     return annos;
 }
 </script>

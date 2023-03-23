@@ -91,14 +91,14 @@ function groupCodes(data) {
         return groups;
     }, {});
     let result = Object.entries(groupedData).map((entry) => {
-        let id = entry[0]; //group id
-        let data = entry[1]; //codes in group
-        let color = codeGroups.value.find(
-            (codeGroup) => codeGroup.id == id
-        ).color;
+        let data = entry[1];
+        let id = entry[0];
         let name = codeGroups.value.find(
             (codeGroup) => codeGroup.id == id
         ).name;
+        let color = codeGroups.value.find(
+            (codeGroup) => codeGroup.id == id
+        ).color;
         return { id, name, data, color };
     });
     return result;
@@ -140,7 +140,7 @@ function postCode(newCode) {
 }
 function putCode(updateCode) {
     axios
-        .put("http://localhost:5000/code", updateCode)
+        .put(`http://localhost:5000/code/${updateCode.id}`, updateCode)
         .then((response) => {
             codes.value = groupCodes(response.data);
         })
@@ -162,10 +162,11 @@ function getCodeGroup() {
 //Add new code
 const newCodeName = ref("");
 function addNewCode(groupId) {
+    let codeGroup = codeGroups.value.find((group) => group.id == groupId);
     const newCode = {
         name: newCodeName.value,
         owner: "maoshuochen",
-        code_group_id: groupId,
+        codeGroup: codeGroup,
     };
     console.log(newCode);
     let ungroupedCodes = ungroupCodes(codes.value);
@@ -183,7 +184,10 @@ function dragChange(event) {
         let newCodeGroup = codes.value.find((group) => {
             return group.data.find((code) => code.id == updateCode.id);
         });
-        updateCode.code_group_id = newCodeGroup.id;
+        updateCode.codeGroup = newCodeGroup;
+        delete updateCode.codeGroup.data;
+        delete updateCode.annotations;
+        delete updateCode.usage;
         putCode(updateCode);
     }
 }
