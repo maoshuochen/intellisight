@@ -2,6 +2,7 @@ from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import MetaData
+from sqlalchemy.inspection import inspect
 from sqlalchemy.ext.automap import automap_base
 from sqlalchemy.orm import relationship
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema, fields
@@ -34,6 +35,7 @@ with app.app_context():
     CodeGroup = Base.classes.code_group
     Paragraph = Base.classes.paragraph
     HighlightMeta = Base.classes.highlight_meta
+    Annotation_Code_Merge = Base.classes.annotation_code_merge
     # Add custom relationships
     # annotation->highlight_meta  one->many
     Annotation.start_meta = relationship(
@@ -45,6 +47,12 @@ with app.app_context():
         'code', secondary='annotation_code_merge', back_populates='annotations', overlaps='annotation,code,annotation_code_merge_collection')
     Code.annotations = relationship(
         'annotation', secondary='annotation_code_merge', back_populates='codes', overlaps='annotation,code,annotation_code_merge_collection')
+    print('Annotation_Code_Merge Relationships:')
+    pprint(inspect(Annotation_Code_Merge).relationships.items())
+    print('Annotation Relationships:')
+    pprint(inspect(Annotation).relationships.items())
+    print('Code Relationships:')
+    pprint(inspect(Code).relationships.items())
 
 # Serialization Schemas
 
@@ -70,7 +78,7 @@ class CodeSchema(SQLAlchemyAutoSchema):
         load_instance = True
     code_group = fields.Nested(CodeGroupSchema)
     annotations = fields.Nested(
-        lambda: AnnotationSchema(exclude=('codes',)), many=True)
+        lambda: AnnotationSchema, many=True, exclude=['codes'])
 
 
 class HighlightMetaSchema(SQLAlchemyAutoSchema):
@@ -92,7 +100,7 @@ class AnnotationSchema(SQLAlchemyAutoSchema):
         model = Annotation
         include_relationships = False
         load_instance = True
-    codes = fields.Nested(CodeSchema(exclude=('annotations',)), many=True)
+    codes = fields.Nested(CodeSchema, many=True, exclude=['annotations'])
     paragraph = fields.Nested(ParagraphSchema)
     start_meta = fields.Nested(HighlightMetaSchema)
     end_meta = fields.Nested(HighlightMetaSchema)
@@ -109,6 +117,7 @@ def serialization(querys, Schema):
 
 
 def deserialization(json, Schema):
+    pprint(json)
     data = humps.decamelize(json)
     object = Schema().load(data, session=db.session)
     return object
@@ -117,6 +126,13 @@ def deserialization(json, Schema):
 def query_all(Table, Schema):
     querys = db.session.query(Table).all()
     return serialization(querys, Schema)
+
+
+def query_last_row(Table, Schema):
+    query_last_row = db.session.query(Table).order_by(
+        Table.id.desc()).first()
+    dump_data = Schema().dump(query_last_row)
+    return humps.camelize(dump_data)
 
 
 # API Endpoints
@@ -173,10 +189,36 @@ def annotation():
         else:
             return query_all(Annotation, AnnotationSchema)
     if request.method == 'POST':
-        annotation = deserialization(request.get_json(), AnnotationSchema)
+        json = request.get_json()
+        # insert start_meta
+        json['startMeta']['is_start'] = 1
+        start_meta = deserialization(json['startMeta'], HighlightMetaSchema)
+        db.session.add(start_meta)
+        db.session.commit()
+        json['startMeta'] = query_last_row(HighlightMeta, HighlightMetaSchema)
+        # insert end_meta
+        json['endMeta']['is_start'] = 0
+        end_meta = deserialization(json['endMeta'], HighlightMetaSchema)
+        db.session.add(end_meta)
+        db.session.commit()
+        json['endMeta'] = query_last_row(HighlightMeta, HighlightMetaSchema)
+        # insert annotation
+        annotation = deserialization(json, AnnotationSchema)
         db.session.add(annotation)
         db.session.commit()
         return query_all(Annotation, AnnotationSchema)
+
+
+@app.route('/highlight-meta', methods=['GET', 'POST'])
+def highlight_meta():
+    if request.method == 'GET':
+        return query_all(HighlightMeta, HighlightMetaSchema)
+    if request.method == 'POST':
+        new_highlight_meta = deserialization(
+            request.get_json(), HighlightMetaSchema)
+        db.session.add(new_highlight_meta)
+        db.session.commit()
+        return query_last_row(HighlightMeta, HighlightMetaSchema)
 
 
 # Enable AutoReload
