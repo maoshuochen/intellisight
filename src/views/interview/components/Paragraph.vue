@@ -19,7 +19,7 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import EditableLabel from "/src/components/EditableLabel.vue";
-import Highlighter from "web-highlighter"; //Highlight https://github.com/alienzhou/web-highlighter
+import Highlighter from "web-highlighter"; //https://github.com/alienzhou/web-highlighter
 import { store } from "/src/store.js";
 import "./highlight.css";
 import axios from "axios";
@@ -45,7 +45,6 @@ function textSelect() {
     }
 }
 function textChange(e) {
-    let newParaText = e.target.innerText;
     let updatePara = { id: props.paragraph.id, text: e.target.innerText };
     console.log(updatePara);
     let updateAnnos = [];
@@ -143,18 +142,6 @@ async function getAnnos() {
     let response = await axios.get(url);
     let annos = response.data;
     return annos;
-}
-
-async function postHighlightMeta(highlightMeta) {
-    axios
-        .post("http://localhost:5000/highlight-meta", highlightMeta)
-        .then(async (response) => {
-            console.log(response.data);
-            return response.data;
-        })
-        .catch((error) => {
-            console.error(error);
-        });
 }
 </script>
 

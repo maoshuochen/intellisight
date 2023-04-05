@@ -78,14 +78,13 @@
                     style="padding-top: 76px"
                 >
                     <a-list-item
-                        class="sider-list-item"
+                        class="sider-para-item"
                         v-for="paragraph in paragraphs"
                         :key="paragraph.id"
                         :style="{
-                            height: getParaDOMHeight(paragraph.id) + 'px',
+                            height: getParaDOMHeight(paragraph.id) - 30 + 'px',
                         }"
                     >
-                        <div style="height: 30px"></div>
                         <a-space direction="vertical">
                             <CodeInSider
                                 v-for="annotation in annotationsInParagraph(
@@ -185,7 +184,6 @@ function getParaDOMHeight(paragraphId) {
         const ref = paragraphRefs.value.find(
             (ref) => ref.props.paragraph.id == paragraphId
         );
-        console.log(ref.elementHeight);
         return ref.elementHeight;
     }
 }
@@ -231,7 +229,8 @@ function annotationsInParagraph(paragraph) {
     display: flex;
     flex-direction: column;
 }
-.sider-list-item {
+.sider-para-item {
     overflow: auto;
+    margin-top: 30px;
 }
 </style>

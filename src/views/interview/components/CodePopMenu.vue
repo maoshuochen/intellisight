@@ -33,6 +33,31 @@
                 {{ code.name }}
             </a-tag>
         </a-space>
+        <a-space direction="vertical" :size="2">
+            <div
+                class="keyword-item"
+                v-for="(keyword, index) in predictKeywords"
+                @mouseenter="isHoveringKeyword[index] = true"
+                @mouseleave="isHoveringKeyword[index] = false"
+            >
+                <a-space size="mini" style="flex: 1">
+                    <p style="color: var(--color-neutral-8)">Create</p>
+                    <p style="color: var(--color-neutral-10)">{{ keyword }}</p>
+                </a-space>
+                <icon-right style="color: var(--color-neutral-6)" />
+                <div
+                    class="keyword-item-dropdown"
+                    v-if="isHoveringKeyword[index]"
+                >
+                    <p
+                        v-for="codeGroup in codeGroups"
+                        :style="{ color: fontColor(codeGroup.color) }"
+                    >
+                        {{ codeGroup.name }}
+                    </p>
+                </div>
+            </div>
+        </a-space>
         <div class="operations">
             <a-button type="primary" @click="confirm">确定</a-button>
             <a-button @click="cancel">取消</a-button>
@@ -48,10 +73,17 @@ import { computed, ref, onMounted } from "vue";
 const props = defineProps(["anno"]);
 const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
 const codes = ref([]);
+const codeGroups = ref([]);
 const text = ref("");
 const predictCodes = ref([]);
+const predictKeywords = ref(["keyword1", "keyword2"]);
 const selectedCodes = ref([]);
 const isLoadingClassification = ref(true);
+const isHoveringKeyword = ref([]);
+
+function fontColor(color) {
+    return `rgb(var(--${color}-7))`;
+}
 
 //Render
 
@@ -70,6 +102,10 @@ onMounted(() => {
     if (props.anno) {
         selectedCodes.value = props.anno.codes;
     }
+    axios.get("http://localhost:5000/code-group").then((response) => {
+        codeGroups.value = response.data;
+        isHoveringKeyword.length = Array(codeGroups.value.length).fill(false);
+    });
     axios.get("http://localhost:5000/code").then((response) => {
         codes.value = response.data;
         //request classfication
@@ -166,5 +202,35 @@ p {
 .arco-tag {
     cursor: pointer;
     user-select: none;
+}
+.keyword-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 2px;
+    cursor: pointer;
+}
+.keyword-item:hover {
+    background-color: var(--color-neutral-1);
+}
+.keyword-item p {
+    font-size: 13px;
+}
+.keyword-item-dropdown {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    background-color: white;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
+    border: 1px solid var(--color-neutral-2);
+    border-radius: 2px;
+    width: 160px;
+    padding: 4px 6px;
+    top: -6px;
+    left: 100%;
+}
+.keyword-item-dropdown p {
+    padding: 4px;
 }
 </style>
