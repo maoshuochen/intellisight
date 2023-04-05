@@ -115,7 +115,6 @@ function addNewCode(groupId) {
         owner: "maoshuochen",
         codeGroup: codeGroup,
     };
-    console.log(newCode);
     let ungroupedCodes = ungroupCodes(codes.value);
     ungroupedCodes.push(newCode);
     postCode(newCode);

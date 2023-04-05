@@ -88,23 +88,28 @@ async function initHighlighter() {
             anno.text,
             anno.id.toString()
         );
-        highlightColor.value = `rgb(var(--${anno.codes[0].codeGroup.color}))`;
         highlighter.addClass(
-            `highlight-wrap-${anno.codes[0].codeGroup.color}`,
+            `highlight-${anno.codes[0].codeGroup.color}`,
             anno.id.toString()
         );
     });
     //Event Listener
     await highlighter
         .on(Highlighter.event.CREATE, function (data) {
-            let newAnno = data.sources[0];
-            newAnno.paragraphId = props.paragraph.id;
+            let newAnnotation = data.sources[0];
             if (store.interview.selectedCodes) {
-                newAnno.codes = store.interview.selectedCodes;
-                console.log(newAnno);
-                postAnno(data.sources);
+                newAnnotation.paragraph = props.paragraph;
+                let codes = store.interview.selectedCodes;
+                for (let code of codes) {
+                    delete code.annotations;
+                    delete code.bordered;
+                }
+                newAnnotation.codes = codes;
+                delete newAnnotation.__isHighlightSource;
+                delete newAnnotation.id;
+                postAnno(newAnnotation);
             } else {
-                console.log("Please select code first");
+                console.error("Please select code first");
             }
         })
         .on(Highlighter.event.CLICK, async function (data) {
@@ -113,18 +118,6 @@ async function initHighlighter() {
                 let anno = annos.find((anno) => anno.id == data.id);
                 emit("clickAnnotation", anno);
             }
-        })
-        .on("selection:hover", ({ id }) => {
-            if (!props.isEditMode) {
-                let anno = annos.find((anno) => anno.id.toString() == id);
-                let color = anno.codes[0].codeGroup.color;
-                highlighter.addClass(`highlight-wrap-hover-${color}`, id);
-            }
-        })
-        .on("selection:hover-out", ({ id }) => {
-            let anno = annos.find((anno) => anno.id.toString() == id);
-            let color = anno.codes[0].codeGroup.color;
-            highlighter.removeClass(`highlight-wrap-hover-${color}`, id);
         });
 }
 
@@ -149,8 +142,19 @@ async function getAnnos() {
         "http://localhost:5000/annotation?paragraph-id=" + props.paragraph.id;
     let response = await axios.get(url);
     let annos = response.data;
-    console.log(annos);
     return annos;
+}
+
+async function postHighlightMeta(highlightMeta) {
+    axios
+        .post("http://localhost:5000/highlight-meta", highlightMeta)
+        .then(async (response) => {
+            console.log(response.data);
+            return response.data;
+        })
+        .catch((error) => {
+            console.error(error);
+        });
 }
 </script>
 
