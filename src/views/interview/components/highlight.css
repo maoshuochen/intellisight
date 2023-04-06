@@ -8,6 +8,11 @@
     background-color: var(--hover);
 }
 
+.highlight-wrap-hover {
+    cursor: pointer;
+    background-color: var(--hover);
+}
+
 .highlight-blue {
     --border: #165dff;
     --hover: #e8f3ff;

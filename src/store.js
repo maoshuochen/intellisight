@@ -4,5 +4,6 @@ export const store = reactive({
     interview: {
         selectedCodes: [],
         selectedText: [],
+        hoveringAnnotationId: null,
     },
 });

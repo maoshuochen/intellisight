@@ -46,15 +46,15 @@
                 </a-space>
                 <icon-right style="color: var(--color-neutral-6)" />
                 <div
-                    class="keyword-item-dropdown"
+                    class="keyword-item-dropdown-panel"
                     v-if="isHoveringKeyword[index]"
                 >
-                    <p
-                        v-for="codeGroup in codeGroups"
-                        :style="{ color: fontColor(codeGroup.color) }"
-                    >
-                        {{ codeGroup.name }}
-                    </p>
+                    <a-space v-for="codeGroup in codeGroups">
+                        <icon-plus style="color: var(--color-neutral-6)" />
+                        <p :style="{ color: fontColor(codeGroup.color) }">
+                            {{ codeGroup.name }}
+                        </p>
+                    </a-space>
                 </div>
             </div>
         </a-space>
@@ -76,7 +76,7 @@ const codes = ref([]);
 const codeGroups = ref([]);
 const text = ref("");
 const predictCodes = ref([]);
-const predictKeywords = ref(["keyword1", "keyword2"]);
+const predictKeywords = ref([]);
 const selectedCodes = ref([]);
 const isLoadingClassification = ref(true);
 const isHoveringKeyword = ref([]);
@@ -119,7 +119,6 @@ onMounted(() => {
             codes: requestCodes,
         };
         axios
-            // .post("http://localhost:5000/predict/classify", request)
             .post("http://localhost:5000/nlp/classification", request)
             .then((response) => {
                 response.data.forEach((label) => {
@@ -139,6 +138,12 @@ onMounted(() => {
                     predictCodes.value.push(found);
                     isLoadingClassification.value = false;
                 });
+            });
+        axios
+            .post("http://localhost:5000/nlp/keyword", request)
+            .then((response) => {
+                console.log(response);
+                predictKeywords.value = response.data;
             });
     });
 });
@@ -207,7 +212,7 @@ p {
     position: relative;
     display: flex;
     align-items: center;
-    padding: 4px;
+    padding: 4px 4px;
     border-radius: 2px;
     cursor: pointer;
 }
@@ -217,20 +222,24 @@ p {
 .keyword-item p {
     font-size: 13px;
 }
-.keyword-item-dropdown {
+.keyword-item-dropdown-panel {
     position: absolute;
     display: flex;
     flex-direction: column;
+    width: 160px;
+    padding: 4px 4px;
+    top: -6px;
+    left: 100%;
     background-color: white;
     box-shadow: 0 0 4px rgba(0, 0, 0, 0.04);
     border: 1px solid var(--color-neutral-2);
     border-radius: 2px;
-    width: 160px;
-    padding: 4px 6px;
-    top: -6px;
-    left: 100%;
 }
-.keyword-item-dropdown p {
-    padding: 4px;
+.keyword-item-dropdown-panel .arco-space {
+    padding: 4px 6px;
+}
+
+.keyword-item-dropdown-panel .arco-space:hover {
+    background-color: var(--color-neutral-1);
 }
 </style>

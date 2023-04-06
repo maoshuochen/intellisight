@@ -59,6 +59,10 @@
                     </template>
                 </draggable>
             </div>
+            <a-link type="text" style="color: var(--color-neutral-6)">
+                <template #icon> <icon-plus /> </template>
+                New Group
+            </a-link>
         </a-space>
         <a-table
             v-if="viewMode == 'Table'"
@@ -121,6 +125,16 @@ function addNewCode(groupId) {
     newCodeName.value = "";
 }
 
+const newGroupName = ref("");
+function addNewGroup() {
+    const newCodeGroup = {
+        name: newGroupName.value,
+        color: "blue",
+    };
+    postCodeGroup(newCodeGroup);
+    newGroupName.value = "";
+}
+
 //Drag code and update
 const isDragging = ref(false);
 function dragChange(event) {
@@ -179,6 +193,16 @@ function putCode(updateCode) {
 function getCodeGroup() {
     axios
         .get("http://localhost:5000/code-group")
+        .then((response) => {
+            codeGroups.value = response.data;
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+function postCodeGroup(newCodeGroup) {
+    axios
+        .post("http://localhost:5000/code-group", newCodeGroup)
         .then((response) => {
             codeGroups.value = response.data;
         })

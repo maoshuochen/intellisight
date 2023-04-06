@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import EditableLabel from "/src/components/EditableLabel.vue";
 import Highlighter from "web-highlighter"; //https://github.com/alienzhou/web-highlighter
 import { store } from "/src/store.js";
@@ -120,6 +120,18 @@ async function initHighlighter() {
         });
 }
 
+watch(
+    () => store.interview.hoveringAnnotationId,
+    (newVal, oldVal) => {
+        if (newVal && !oldVal) {
+            highlighter.addClass("highlight-wrap-hover", newVal.toString());
+        }
+        if (!newVal && oldVal) {
+            highlighter.removeClass("highlight-wrap-hover", oldVal.toString());
+        }
+    }
+);
+
 function postAnno(annotation) {
     axios
         .post("http://localhost:5000/annotation", annotation)
@@ -153,9 +165,11 @@ async function getAnnos() {
     display: flex;
     align-items: center;
     gap: 10px;
+    user-select: none;
 }
 .header .time {
     color: var(--color-text-3);
+    user-select: none;
 }
 .text {
     margin: 5px 1px;
