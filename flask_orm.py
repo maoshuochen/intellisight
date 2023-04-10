@@ -146,6 +146,11 @@ def interview():
 def paragraph():
     if request.method == 'GET':
         return query_all(Paragraph, ParagraphSchema)
+    if request.method == 'POST':
+        new_paragraph = deserialization(request.get_json(), ParagraphSchema)
+        db.session.add(new_paragraph)
+        db.session.commit()
+        return query_all(Paragraph, ParagraphSchema)
 
 
 @app.route('/code-group', methods=['GET', 'POST'])
@@ -153,7 +158,22 @@ def code_group():
     if request.method == 'GET':
         return query_all(CodeGroup, CodeGroupSchema)
     if request.method == 'POST':
-        pass
+        new_group = deserialization(request.get_json(), CodeGroupSchema)
+        db.session.add(new_group)
+        db.session.commit()
+        return query_all(CodeGroup, CodeGroupSchema)
+
+
+@app.route('/code_group/<code_group_id>', methods=['PUT', 'DELETE'])
+def code_group_by_id(code_group_id):
+    if request.method == 'PUT':
+        new_code_group = deserialization(request.get_json(), CodeGroupSchema)
+        old_code_group = db.session.query(
+            CodeGroup).filter_by(id=str(code_group_id))
+        # Change Color Property
+        old_code_group.color = new_code_group.color
+        db.session.commit()
+        return query_all(CodeGroup, CodeGroupSchema)
 
 
 @app.route("/code", methods=['GET', 'POST'])
@@ -172,6 +192,7 @@ def code_by_id(code_id):
     if request.method == 'PUT':
         new_code = deserialization(request.get_json(), CodeSchema)
         old_code = db.session.query(Code).filter_by(id=str(code_id))
+        # Change Code Group Property
         old_code.code_group = new_code.code_group
         db.session.commit()
         return query_all(Code, CodeSchema)
