@@ -47,7 +47,7 @@
                                     @text-select="textSelect"
                                     @text-change="saveEdit"
                                     @click-annotation="clickAnnotation"
-                                    @add-annotation="updateData"
+                                    @refresh-annotation-data="updateData"
                                 />
                             </a-space>
                         </template>
@@ -60,7 +60,7 @@
                                 showCodePopMenu = false;
                             }
                         "
-                        @addAnnotation="addAnnotation"
+                        @add-annotation="addAnnotation"
                     ></CodePopMenu>
                 </a-list>
             </a-space>
@@ -178,16 +178,18 @@ function clickAnnotation(annotation) {
     showCodePopMenu.value = true;
     currentAnnotation.value = annotation;
 }
+
 //Sider
 function getParaDOMHeight(paragraphId) {
     if (paragraphId && paragraphRefs.value) {
         const ref = paragraphRefs.value.find(
             (ref) => ref.props.paragraph.id == paragraphId
         );
-        return ref.elementHeight;
+        if (ref) {
+            return ref.elementHeight;
+        }
     }
 }
-
 function annotationsInParagraph(paragraph) {
     let result = [];
     if (paragraph == null) {

@@ -75,9 +75,9 @@ const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
 const codes = ref([]);
 const codeGroups = ref([]);
 const text = ref("");
+const selectedCodes = ref([]);
 const predictCodes = ref([]);
 const predictKeywords = ref([]);
-const selectedCodes = ref([]);
 const isLoadingClassification = ref(true);
 const isHoveringKeyword = ref([]);
 
@@ -101,6 +101,7 @@ if (props.anno) {
 onMounted(() => {
     if (props.anno) {
         selectedCodes.value = props.anno.codes;
+        store.interview.editingAnnotationId = props.anno.id;
     }
     axios.get("http://localhost:5000/code-group").then((response) => {
         codeGroups.value = response.data;
@@ -155,9 +156,22 @@ function cancel() {
 }
 function confirm() {
     store.interview.selectedCodes = selectedCodes.value;
-    emit("addAnnotation");
+    if (props.anno) {
+        //update Annotation
+        let anno = props.anno;
+        let codes = selectedCodes.value;
+        for (let code of codes) {
+            delete code.annotations;
+            delete code.bordered;
+        }
+        anno.codes = codes;
+        putAnno(anno);
+    } else {
+        emit("addAnnotation");
+    }
     emit("closeCodePopMenu");
     window.getSelection().empty();
+    store.interview.editingAnnotationId = null;
 }
 function deleteSelectedCode(code) {
     let index = selectedCodes.value.findIndex((item) => item.id == code.id);
@@ -173,6 +187,19 @@ function addSelectedCode(code) {
         selectedCodes.value.splice(index, 1);
         predictCodes.value.find((item) => item.id == code.id).bordered = false;
     }
+}
+function putAnno(new_annotation, old_annotation_id) {
+    axios
+        .put(
+            `http://localhost:5000/annotation/${old_annotation_id}`,
+            new_annotation
+        )
+        .then(async (response) => {
+            // await emit("postAnnotationDone");
+        })
+        .catch((error) => {
+            console.error(error);
+        });
 }
 </script>
 

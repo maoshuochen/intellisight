@@ -29,46 +29,20 @@ const emit = defineEmits([
     "textSelect",
     "textChange",
     "clickAnnotation",
-    "addAnnotation",
+    "refreshAnnotationData",
 ]);
 const focusText = ref(false);
 const focusTime = ref(false);
 const containerRef = ref(null);
 const elementHeight = ref(null);
 const textRef = ref(null);
-const highlightColor = ref("blue");
-defineExpose({ props, elementHeight });
 
-function textSelect() {
-    if (!props.isEditMode) {
-        emit("textSelect", highlighter);
-    }
-}
-function textChange(e) {
-    let updatePara = { id: props.paragraph.id, text: e.target.innerText };
-    console.log(updatePara);
-    let updateAnnos = [];
-    console.log(e.target.children[0]);
-    console.log(highlighter.getIdByDom(e.target.children[0]));
-    //calculate new startMeta and endMeta
-    emit("textChange", updatePara, updateAnnos);
-}
+defineExpose({ props, elementHeight });
 
 onMounted(async () => {
     initHighlighter();
     observeHeight();
 });
-
-function observeHeight() {
-    const resizeObserver = new ResizeObserver(function () {
-        let oldVal = elementHeight.value;
-        let newVal = containerRef.value.offsetHeight;
-        if (newVal != oldVal) {
-            elementHeight.value = newVal;
-        }
-    });
-    resizeObserver.observe(containerRef.value);
-}
 
 let highlighter;
 async function initHighlighter() {
@@ -120,28 +94,70 @@ async function initHighlighter() {
         });
 }
 
+function observeHeight() {
+    const resizeObserver = new ResizeObserver(function () {
+        let oldVal = elementHeight.value;
+        let newVal = containerRef.value.offsetHeight;
+        if (newVal != oldVal) {
+            elementHeight.value = newVal;
+        }
+    });
+    resizeObserver.observe(containerRef.value);
+}
+
 watch(
     () => store.interview.hoveringAnnotationId,
     (newVal, oldVal) => {
         if (newVal && !oldVal) {
+            //mouse enter
             highlighter.addClass("highlight-wrap-hover", newVal.toString());
         }
         if (!newVal && oldVal) {
+            //mouse out
             highlighter.removeClass("highlight-wrap-hover", oldVal.toString());
         }
     }
 );
 
+watch(
+    () => store.interview.editingAnnotationId,
+    async (newVal, oldVal) => {
+        if (!newVal && oldVal) {
+            //complete editing
+            let annos = await getAnnos();
+            for (let anno of annos) {
+                if (anno.id == oldVal) {
+                    highlighter = null;
+                    initHighlighter();
+                    emit("refreshAnnotationData");
+                }
+            }
+        }
+    }
+);
+
+function textSelect() {
+    if (!props.isEditMode) {
+        emit("textSelect", highlighter);
+    }
+}
+function textChange(e) {
+    let updatePara = { id: props.paragraph.id, text: e.target.innerText };
+    console.log(updatePara);
+    let updateAnnos = [];
+    console.log(e.target.children[0]);
+    console.log(highlighter.getIdByDom(e.target.children[0]));
+    //calculate new startMeta and endMeta
+    emit("textChange", updatePara, updateAnnos);
+}
+
 function postAnno(annotation) {
     axios
         .post("http://localhost:5000/annotation", annotation)
         .then(async (response) => {
-            console.log(response.data);
-            //Refresh Highlighter
             highlighter = null;
             await initHighlighter();
-            //Refresh CodeInSider
-            await emit("addAnnotation");
+            await emit("refreshAnnotationData");
         })
         .catch((error) => {
             console.error(error);

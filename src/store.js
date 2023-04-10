@@ -5,5 +5,6 @@ export const store = reactive({
         selectedCodes: [],
         selectedText: [],
         hoveringAnnotationId: null,
+        editingAnnotationId: null,
     },
 });
