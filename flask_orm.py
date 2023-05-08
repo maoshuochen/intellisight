@@ -1,6 +1,7 @@
 from flask import Flask, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from numpy import delete
 from sqlalchemy import MetaData
 from sqlalchemy.inspection import inspect
 from sqlalchemy.ext.automap import automap_base
@@ -47,12 +48,6 @@ with app.app_context():
         'code', secondary='annotation_code_merge', back_populates='annotations', overlaps='annotation,code,annotation_code_merge_collection')
     Code.annotations = relationship(
         'annotation', secondary='annotation_code_merge', back_populates='codes', overlaps='annotation,code,annotation_code_merge_collection')
-    print('Annotation_Code_Merge Relationships:')
-    pprint(inspect(Annotation_Code_Merge).relationships.items())
-    print('Annotation Relationships:')
-    pprint(inspect(Annotation).relationships.items())
-    print('Code Relationships:')
-    pprint(inspect(Code).relationships.items())
 
 # Serialization Schemas
 
@@ -191,9 +186,14 @@ def code():
 def code_by_id(code_id):
     if request.method == 'PUT':
         new_code = deserialization(request.get_json(), CodeSchema)
-        old_code = db.session.query(Code).filter_by(id=str(code_id))
+        old_code = db.session.query(Code).filter_by(id=str(code_id)).first()
         # Change Code Group Property
         old_code.code_group = new_code.code_group
+        db.session.commit()
+        return query_all(Code, CodeSchema)
+    if request.method == 'DELETE':
+        delete_code = db.session.query(Code).filter_by(id=str(code_id)).first()
+        db.session.delete(delete_code)
         db.session.commit()
         return query_all(Code, CodeSchema)
 
@@ -226,6 +226,24 @@ def annotation():
         # insert annotation
         annotation = deserialization(json, AnnotationSchema)
         db.session.add(annotation)
+        db.session.commit()
+        return query_all(Annotation, AnnotationSchema)
+
+
+@app.route('/annotation/<annotation_id>', methods=['PUT', 'DELETE'])
+def annotation_by_id(annotation_id):
+    if request.method == 'PUT':
+        new_annotation = deserialization(request.get_json(), AnnotationSchema)
+        old_annotation = db.session.query(
+            Annotation).filter_by(id=str(annotation_id))
+        # Change Codes Property
+        old_annotation.codes = new_annotation.codes
+        db.session.commit()
+        return query_all(Annotation, AnnotationSchema)
+    if request.method == 'DELETE':
+        delete_annotation = db.session.query(
+            Annotation).filter_by(id=str(annotation_id))
+        db.session.delete(delete_annotation)
         db.session.commit()
         return query_all(Annotation, AnnotationSchema)
 
