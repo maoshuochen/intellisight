@@ -45,7 +45,6 @@
                                     :paragraph="paragraph"
                                     :isEditMode="isEditMode"
                                     @text-select="textSelect"
-                                    @text-change="saveEdit"
                                     @click-annotation="clickAnnotation"
                                     @refresh-annotation-data="updateData"
                                 />
@@ -55,11 +54,7 @@
                     <CodePopMenu
                         v-if="showCodePopMenu"
                         :anno="currentAnnotation"
-                        @closeCodePopMenu="
-                            {
-                                showCodePopMenu = false;
-                            }
-                        "
+                        @closeCodePopMenu="showCodePopMenu = false"
                         @add-annotation="addAnnotation"
                     ></CodePopMenu>
                 </a-list>

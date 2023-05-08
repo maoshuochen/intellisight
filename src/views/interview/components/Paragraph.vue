@@ -141,15 +141,6 @@ function textSelect() {
         emit("textSelect", highlighter);
     }
 }
-function textChange(e) {
-    let updatePara = { id: props.paragraph.id, text: e.target.innerText };
-    console.log(updatePara);
-    let updateAnnos = [];
-    console.log(e.target.children[0]);
-    console.log(highlighter.getIdByDom(e.target.children[0]));
-    //calculate new startMeta and endMeta
-    emit("textChange", updatePara, updateAnnos);
-}
 
 function postAnno(annotation) {
     axios

@@ -49,7 +49,10 @@
                     class="keyword-item-dropdown-panel"
                     v-if="isHoveringKeyword[index]"
                 >
-                    <a-space v-for="codeGroup in codeGroups">
+                    <a-space
+                        v-for="codeGroup in codeGroups"
+                        @click="addNewCode(keyword, codeGroup)"
+                    >
                         <icon-plus style="color: var(--color-neutral-6)" />
                         <p :style="{ color: fontColor(codeGroup.color) }">
                             {{ codeGroup.name }}
@@ -99,6 +102,10 @@ if (props.anno) {
 }
 
 onMounted(() => {
+    init();
+});
+
+function init() {
     if (props.anno) {
         selectedCodes.value = props.anno.codes;
         store.interview.editingAnnotationId = props.anno.id;
@@ -109,45 +116,52 @@ onMounted(() => {
     });
     axios.get("http://localhost:5000/code").then((response) => {
         codes.value = response.data;
-        //request classfication
-        let requestCodes = [];
-        codes.value.forEach((code) => {
-            let requestCode = code.name;
-            requestCodes.push(requestCode);
-        });
-        let request = {
-            input: text.value,
-            codes: requestCodes,
-        };
-        axios
-            .post("http://localhost:5000/nlp/classification", request)
-            .then((response) => {
-                response.data.forEach((label) => {
-                    let found = codes.value.find((code) => code.name == label);
-                    if (selectedCodes.value) {
-                        let index = selectedCodes.value.findIndex(
-                            (item) => item.id == found.id
-                        );
-                        if (index == -1) {
-                            found.bordered = false;
-                        } else {
-                            found.bordered = true;
-                        }
-                    } else {
-                        found.bordered = false;
-                    }
-                    predictCodes.value.push(found);
-                    isLoadingClassification.value = false;
-                });
-            });
-        axios
-            .post("http://localhost:5000/nlp/keyword", request)
-            .then((response) => {
-                console.log(response);
-                predictKeywords.value = response.data;
-            });
+        getPredictCodes();
+        getPredictKeywords();
     });
-});
+}
+
+function getPredictCodes() {
+    //request classfication
+    let requestCodes = [];
+    codes.value.forEach((code) => {
+        let requestCode = code.name;
+        requestCodes.push(requestCode);
+    });
+    let request = {
+        input: text.value,
+        codes: requestCodes,
+    };
+    axios
+        .post("http://localhost:5000/nlp/classification", request)
+        .then((response) => {
+            response.data.forEach((label) => {
+                let found = codes.value.find((code) => code.name == label);
+                if (selectedCodes.value) {
+                    let index = selectedCodes.value.findIndex(
+                        (item) => item.id == found.id
+                    );
+                    if (index == -1) {
+                        found.bordered = false;
+                    } else {
+                        found.bordered = true;
+                    }
+                } else {
+                    found.bordered = false;
+                }
+                predictCodes.value.push(found);
+                isLoadingClassification.value = false;
+            });
+        });
+}
+function getPredictKeywords() {
+    let request = { input: text.value };
+    axios
+        .post("http://localhost:5000/nlp/keyword", request)
+        .then((response) => {
+            predictKeywords.value = response.data;
+        });
+}
 
 //operations
 function cancel() {
@@ -167,6 +181,7 @@ function confirm() {
         anno.codes = codes;
         putAnno(anno);
     } else {
+        //add Annotation
         emit("addAnnotation");
     }
     emit("closeCodePopMenu");
@@ -187,6 +202,22 @@ function addSelectedCode(code) {
         selectedCodes.value.splice(index, 1);
         predictCodes.value.find((item) => item.id == code.id).bordered = false;
     }
+}
+function addNewCode(codeName, codeGroup) {
+    let newCode = {
+        name: codeName,
+        codeGroup: codeGroup,
+        owner: "maoshuochen",
+    };
+    axios.post("http://localhost:5000/code", newCode).then((response) => {
+        codes.value = response.data;
+        let responseNewCode = response.data.find(
+            (item) => item.name == codeName
+        );
+        selectedCodes.value.push(responseNewCode);
+        predictCodes.value = [];
+        getPredictCodes();
+    });
 }
 function putAnno(new_annotation, old_annotation_id) {
     axios

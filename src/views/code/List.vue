@@ -22,17 +22,44 @@
                             {{ group.name }}
                         </div>
                     </template>
-                    <template #item="{ element }">
-                        <div class="code-group-element">
-                            <a-tag :color="group.color">
-                                {{ element.name }}
-                            </a-tag>
-                            <a-typography-text
-                                :style="{ color: fontColor(group.color) }"
-                            >
-                                {{ element.usage }}
-                            </a-typography-text>
-                        </div>
+                    <template #item="{ element: code }">
+                        <a-popover
+                            trigger="click"
+                            @ok="changeCodeName(code.id, updateCodeName)"
+                        >
+                            <div class="code-group-element">
+                                <a-tag :color="group.color">
+                                    {{ code.name }}
+                                </a-tag>
+                                <a-typography-text
+                                    :style="{ color: fontColor(group.color) }"
+                                >
+                                    {{ code.usage }}
+                                </a-typography-text>
+                            </div>
+                            <template #content>
+                                <a-space direction="vertical" size="small">
+                                    <a-input
+                                        v-model="updateCodeName"
+                                        placeholder="New Code Name"
+                                        :default-value="code.name"
+                                    >
+                                    </a-input>
+                                    <a-space size="medium">
+                                        <a-button>重命名编码</a-button>
+                                        <a-link
+                                            status="danger"
+                                            @click="deleteCode(code.id)"
+                                        >
+                                            <template #icon>
+                                                <icon-delete />
+                                            </template>
+                                            删除
+                                        </a-link>
+                                    </a-space>
+                                </a-space>
+                            </template>
+                        </a-popover>
                     </template>
                     <template #footer>
                         <div class="code-group-footer">
@@ -91,6 +118,7 @@ function groupCodes(codes) {
     let groups = codeGroups.value;
     groups.forEach((group) => (group.data = []));
     codes.forEach((code) => {
+        code.usage = code.annotations.length;
         let foundGroup = groups.find((group) => group.id == code.codeGroup.id);
         foundGroup.data.push(code);
     });
@@ -149,6 +177,28 @@ function dragChange(event) {
         delete updateCode.usage;
         putCode(updateCode);
     }
+}
+
+//Update code name
+const updateCodeName = ref("");
+function changeCodeName(id, name) {
+    let updateCode = codes.value.find((group) => {
+        return group.data.find((code) => code.id == id);
+    });
+    updateCode.name = name;
+    putCode(updateCode);
+}
+
+//Detele code
+function deleteCode(id) {
+    axios
+        .delete(`http://localhost:5000/code/${id}`)
+        .then((response) => {
+            codes.value = groupCodes(response.data);
+        })
+        .catch((error) => {
+            console.error(error);
+        });
 }
 
 //Data for Table View
