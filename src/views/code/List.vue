@@ -46,7 +46,15 @@
                                     >
                                     </a-input>
                                     <a-space size="medium">
-                                        <a-button>重命名编码</a-button>
+                                        <a-button
+                                            @click="
+                                                changeCodeName(
+                                                    code.id,
+                                                    updateCodeName
+                                                )
+                                            "
+                                            >重命名编码</a-button
+                                        >
                                         <a-link
                                             status="danger"
                                             @click="deleteCode(code.id)"
@@ -182,10 +190,12 @@ function dragChange(event) {
 //Update code name
 const updateCodeName = ref("");
 function changeCodeName(id, name) {
-    let updateCode = codes.value.find((group) => {
-        return group.data.find((code) => code.id == id);
-    });
+    let updateCode = ungroupCodes(codes.value).find((code) => code.id == id);
     updateCode.name = name;
+    delete updateCode.codeGroup.data;
+    delete updateCode.annotations;
+    delete updateCode.usage;
+    console.log(updateCode);
     putCode(updateCode);
 }
 
