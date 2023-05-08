@@ -23,51 +23,51 @@
                         </div>
                     </template>
                     <template #item="{ element: code }">
-                        <a-popover
-                            trigger="click"
-                            @ok="changeCodeName(code.id, updateCodeName)"
-                        >
-                            <div class="code-group-element">
-                                <a-tag :color="group.color">
+                        <div class="code-group-element">
+                            <a-popover
+                                trigger="click"
+                                @ok="changeCodeName(code.id, updateCodeName)"
+                            >
+                                <a-tag class="tag" :color="group.color">
                                     {{ code.name }}
                                 </a-tag>
-                                <a-typography-text
-                                    :style="{ color: fontColor(group.color) }"
-                                >
-                                    {{ code.usage }}
-                                </a-typography-text>
-                            </div>
-                            <template #content>
-                                <a-space direction="vertical" size="small">
-                                    <a-input
-                                        v-model="updateCodeName"
-                                        placeholder="New Code Name"
-                                        :default-value="code.name"
-                                    >
-                                    </a-input>
-                                    <a-space size="medium">
-                                        <a-button
-                                            @click="
-                                                changeCodeName(
-                                                    code.id,
-                                                    updateCodeName
-                                                )
-                                            "
-                                            >重命名编码</a-button
+                                <template #content>
+                                    <a-space direction="vertical" size="small">
+                                        <a-input
+                                            v-model="updateCodeName"
+                                            placeholder="New Code Name"
+                                            :default-value="code.name"
                                         >
-                                        <a-link
-                                            status="danger"
-                                            @click="deleteCode(code.id)"
-                                        >
-                                            <template #icon>
-                                                <icon-delete />
-                                            </template>
-                                            删除
-                                        </a-link>
+                                        </a-input>
+                                        <a-space size="medium">
+                                            <a-button
+                                                @click="
+                                                    changeCodeName(
+                                                        code.id,
+                                                        updateCodeName
+                                                    )
+                                                "
+                                                >重命名编码</a-button
+                                            >
+                                            <a-link
+                                                status="danger"
+                                                @click="deleteCode(code.id)"
+                                            >
+                                                <template #icon>
+                                                    <icon-delete />
+                                                </template>
+                                                删除
+                                            </a-link>
+                                        </a-space>
                                     </a-space>
-                                </a-space>
-                            </template>
-                        </a-popover>
+                                </template>
+                            </a-popover>
+                            <a-typography-text
+                                :style="{ color: fontColor(group.color) }"
+                            >
+                                {{ code.usage }}
+                            </a-typography-text>
+                        </div>
                     </template>
                     <template #footer>
                         <div class="code-group-footer">
@@ -295,6 +295,9 @@ function postCodeGroup(newCodeGroup) {
     padding: 10px 16px;
     background-color: #fff;
     cursor: move;
+}
+.code-group-element .tag {
+    cursor: pointer;
 }
 .code-group-footer {
     padding: 6px 16px;
