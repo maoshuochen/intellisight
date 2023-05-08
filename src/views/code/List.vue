@@ -94,10 +94,16 @@
                     </template>
                 </draggable>
             </div>
-            <a-link type="text" style="color: var(--color-neutral-6)">
-                <template #icon> <icon-plus /> </template>
-                New Group
-            </a-link>
+            <a-popconfirm @ok="addNewGroup()">
+                <a-link type="text" style="color: var(--color-neutral-6)">
+                    <template #icon> <icon-plus /> </template>
+                    New Group
+                </a-link>
+                <template #icon>
+                    <a-input v-model="newGroupName" placeholder="Group Name">
+                    </a-input>
+                </template>
+            </a-popconfirm>
         </a-space>
         <a-table
             v-if="viewMode == 'Table'"
@@ -157,6 +163,9 @@ function addNewCode(groupId) {
     };
     let ungroupedCodes = ungroupCodes(codes.value);
     ungroupedCodes.push(newCode);
+    delete newCode.codeGroup.data;
+    delete newCode.annotations;
+    delete newCode.usage;
     postCode(newCode);
     newCodeName.value = "";
 }
@@ -265,6 +274,7 @@ function postCodeGroup(newCodeGroup) {
         .post("http://localhost:5000/code-group", newCodeGroup)
         .then((response) => {
             codeGroups.value = response.data;
+            getCodes();
         })
         .catch((error) => {
             console.error(error);
