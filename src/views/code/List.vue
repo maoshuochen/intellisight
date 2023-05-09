@@ -306,6 +306,10 @@ function postCodeGroup(newCodeGroup) {
     background-color: #fff;
     cursor: move;
 }
+.code-group-element:hover {
+    background-color: var(--color-neutral-1);
+    transition: 0.2s;
+}
 .code-group-element .tag {
     cursor: pointer;
 }
