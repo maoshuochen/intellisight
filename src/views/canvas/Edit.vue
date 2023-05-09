@@ -4,7 +4,7 @@
             <div class="dndflow" @drop="onDrop">
                 <VueFlow @dragover="onDragOver">
                     <template #node-custom="props">
-                        <AnnoNode v-bind="props" />
+                        <AnnoNode v-bind="props" :in-graph="true" />
                     </template>
                     <Background />
                 </VueFlow>
@@ -17,7 +17,7 @@
 </template>
 
 <script setup>
-import { VueFlow, useVueFlow } from "@vue-flow/core";
+import { VueFlow, useVueFlow, Position } from "@vue-flow/core";
 import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/core/dist/style.css";
@@ -51,9 +51,6 @@ function onDragOver(event) {
 onConnect((params) => addEdges([params]));
 function onDrop(event) {
     const data = JSON.parse(event.dataTransfer?.getData("application/vueflow"));
-    // const data = {
-    //     text: "111",
-    // };
     const { left, top } = vueFlowRef.value.getBoundingClientRect();
     const position = project({
         x: event.clientX - left,
