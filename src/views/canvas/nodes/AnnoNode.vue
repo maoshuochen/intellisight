@@ -1,41 +1,23 @@
 <template>
-    <a-card class="container">
+    <a-card class="container" ref="container">
         <a-space direction="vertical">
-            {{ anno.text }}
+            {{ data.text }}
             <a-space wrap>
-                <a-tag v-for="code in anno.codes" :color="code.color">
+                <a-tag v-for="code in data.codes" :color="code.codeGroup.color">
                     {{ code.name }}
                 </a-tag>
             </a-space>
         </a-space>
     </a-card>
 </template>
-<script>
-export default {
-    name: "AnnoNode",
-    inject: ["getNode"],
-    data() {
-        return {
-            text: "empty",
-            anno: { text: null, codes: [] },
-        };
-    },
-    mounted() {
-        const node = this.getNode();
-        const { anno, text } = node.getData();
-        this.text = text;
-        this.anno = anno;
-        // node.on("change:data", ({ current }) => {
-        //     console.log(current.text);
-        //     this.text = current.text;
-        // });
-    },
-};
+
+<script setup>
+import { ref } from "vue";
+const props = defineProps(["data"]);
 </script>
+
 <style scoped>
-.container {
-    height: 100px;
-    width: 200px;
-    border-radius: 6px;
+.dndflow .container {
+    width: 240px;
 }
 </style>

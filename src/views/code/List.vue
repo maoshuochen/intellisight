@@ -253,7 +253,7 @@ function putCode(updateCode) {
     axios
         .put(`http://localhost:5000/code/${updateCode.id}`, updateCode)
         .then((response) => {
-            codes.value = groupCodes(response.data);
+            getCodes();
         })
         .catch((error) => {
             console.error(error);
