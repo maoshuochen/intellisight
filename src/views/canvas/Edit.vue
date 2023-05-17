@@ -2,15 +2,19 @@
     <a-layout>
         <a-layout-content>
             <div class="dndflow" @drop="onDrop">
-                <VueFlow @dragover="onDragOver">
+                <VueFlow
+                    @dragover="onDragOver"
+                    @edge-update="onEdgeUpdate"
+                    :connection-line-options="{ type: 'smoothstep' }"
+                >
                     <template #node-custom="props">
                         <AnnoNode v-bind="props" :in-graph="true" />
                     </template>
-                    <Controls />
-                    <Background />
                     <template #edge-custom="props">
                         <CustomEdge v-bind="props" />
                     </template>
+                    <Controls />
+                    <Background />
                 </VueFlow>
             </div>
         </a-layout-content>
@@ -27,7 +31,7 @@ import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/controls/dist/style.css";
-import { nextTick, watch } from "vue";
+import { nextTick, watch, onMounted, onBeforeUnmount } from "vue";
 import Sidebar from "./Sidebar.vue";
 import AnnoNode from "./nodes/AnnoNode.vue";
 import CustomEdge from "./CustomEdge.vue";
@@ -36,11 +40,22 @@ let id = 0;
 function getId() {
     return `dndnode_${id++}`;
 }
-//Init Canvas
-const { findNode, onConnect, addEdges, addNodes, project, vueFlowRef } =
-    useVueFlow({
-        nodes: [],
-    });
+const {
+    findNode,
+    onConnect,
+    addEdges,
+    addNodes,
+    project,
+    updateEdge,
+    setNodes,
+    setEdges,
+    dimensions,
+    setTransform,
+    toObject,
+    vueFlowRef,
+} = useVueFlow({
+    nodes: [],
+});
 //Drag&Drop
 function onDragOver(event) {
     event.preventDefault();
@@ -49,7 +64,9 @@ function onDragOver(event) {
     }
 }
 onConnect((params) => {
-    params.type = "custom"; //set edge type as edge-custom
+    //custom edge
+    params.type = "custom";
+    params.updatable = true;
     params.events = {
         doubleClick: (e) => {
             console.log(e.edge.data);
@@ -58,6 +75,9 @@ onConnect((params) => {
     };
     addEdges([params]);
 });
+function onEdgeUpdate({ edge, connection }) {
+    return updateEdge(edge, connection);
+}
 function onDrop(event) {
     const data = JSON.parse(event.dataTransfer?.getData("application/vueflow"));
     const { left, top } = vueFlowRef.value.getBoundingClientRect();
@@ -89,6 +109,32 @@ function onDrop(event) {
             { deep: true, flush: "post" }
         );
     });
+}
+//Save
+const flowKey = "example-flow";
+onMounted(() => {
+    onRestore();
+    document.addEventListener("keydown", onSave);
+});
+onBeforeUnmount(() => {
+    document.removeEventListener("keydown", onSave);
+});
+function onSave(e) {
+    if (!(e.keyCode === 83 && e.ctrlKey)) {
+        return;
+    }
+    e.preventDefault();
+    localStorage.setItem(flowKey, JSON.stringify(toObject()));
+    console.log("Save");
+}
+function onRestore() {
+    const flow = JSON.parse(localStorage.getItem(flowKey));
+    if (flow) {
+        const [x = 0, y = 0] = flow.position;
+        setNodes(flow.nodes);
+        setEdges(flow.edges);
+        setTransform({ x, y, zoom: flow.zoom || 0 });
+    }
 }
 </script>
 

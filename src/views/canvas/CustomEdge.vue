@@ -1,12 +1,6 @@
 <template>
     <!-- You can use the `BaseEdge` component to create your own custom edge more easily -->
-    <BaseEdge
-        :id="id"
-        :style="style"
-        :path="path[0]"
-        :marker-end="markerEnd"
-        @click="console.log('click')"
-    />
+    <BaseEdge :id="id" :style="style" :path="path[0]" :marker-end="markerEnd" />
     <!-- Use the `EdgeLabelRenderer` to escape the SVG world of edges and render your own custom label in a `<div>` ctx -->
     <EdgeLabelRenderer>
         <div
@@ -17,8 +11,8 @@
             }"
             class="nodrag nopan"
         >
-            <!-- <button class="edgebutton" @click="removeEdges([id])">×</button> -->
             <a-input
+                class="edge-label-input"
                 v-show="data.labelEditing"
                 v-model="data.labelText"
                 placeholder="Enter something"
@@ -26,7 +20,7 @@
             />
             <p
                 class="edge-label-text"
-                v-show="!data.labelEditing"
+                v-show="!data.labelEditing && data.labelText"
                 @dblclick="data.labelEditing = true"
             >
                 {{ data.labelText }}
@@ -36,13 +30,8 @@
 </template>
 
 <script setup>
-import {
-    BaseEdge,
-    EdgeLabelRenderer,
-    getBezierPath,
-    useVueFlow,
-} from "@vue-flow/core";
-import { ref, computed } from "vue";
+import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@vue-flow/core";
+import { computed } from "vue";
 
 const props = defineProps({
     id: {
@@ -91,9 +80,8 @@ const props = defineProps({
 
 props.data.labelEditing = false;
 props.data.labelText = "";
-const { removeEdges } = useVueFlow();
 
-const path = computed(() => getBezierPath(props));
+const path = computed(() => getSmoothStepPath(props));
 </script>
 
 <script>
@@ -107,5 +95,8 @@ export default {
     background-color: #fff;
     padding: 2px;
     cursor: pointer;
+}
+.edge-label-input {
+    z-index: 999;
 }
 </style>
