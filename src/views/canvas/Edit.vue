@@ -6,7 +6,11 @@
                     <template #node-custom="props">
                         <AnnoNode v-bind="props" :in-graph="true" />
                     </template>
+                    <Controls />
                     <Background />
+                    <template #edge-custom="props">
+                        <CustomEdge v-bind="props" />
+                    </template>
                 </VueFlow>
             </div>
         </a-layout-content>
@@ -17,29 +21,25 @@
 </template>
 
 <script setup>
-import { VueFlow, useVueFlow, Position } from "@vue-flow/core";
+import { VueFlow, useVueFlow } from "@vue-flow/core";
+import { Controls } from "@vue-flow/controls";
 import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/core/dist/style.css";
+import "@vue-flow/controls/dist/style.css";
 import { nextTick, watch } from "vue";
 import Sidebar from "./Sidebar.vue";
 import AnnoNode from "./nodes/AnnoNode.vue";
+import CustomEdge from "./CustomEdge.vue";
 
 let id = 0;
 function getId() {
     return `dndnode_${id++}`;
 }
-
+//Init Canvas
 const { findNode, onConnect, addEdges, addNodes, project, vueFlowRef } =
     useVueFlow({
-        nodes: [
-            {
-                id: "1",
-                type: "input",
-                label: "input node",
-                position: { x: 250, y: 25 },
-            },
-        ],
+        nodes: [],
     });
 //Drag&Drop
 function onDragOver(event) {
@@ -48,7 +48,16 @@ function onDragOver(event) {
         event.dataTransfer.dropEffect = "move";
     }
 }
-onConnect((params) => addEdges([params]));
+onConnect((params) => {
+    params.type = "custom"; //set edge type as edge-custom
+    params.events = {
+        doubleClick: (e) => {
+            console.log(e.edge.data);
+            e.edge.data.labelEditing = !e.edge.data.labelEditing;
+        },
+    };
+    addEdges([params]);
+});
 function onDrop(event) {
     const data = JSON.parse(event.dataTransfer?.getData("application/vueflow"));
     const { left, top } = vueFlowRef.value.getBoundingClientRect();
@@ -83,7 +92,7 @@ function onDrop(event) {
 }
 </script>
 
-<style scoped>
+<style>
 .vue-flow__minimap {
     transform: scale(75%);
     transform-origin: bottom right;
@@ -95,5 +104,9 @@ function onDrop(event) {
     width: 100%;
     height: 100%;
     background-color: #fff;
+}
+.vue-flow__node.selected {
+    border: 1px solid rgb(var(--arcoblue-6));
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 </style>

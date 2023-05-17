@@ -1,6 +1,5 @@
 <template>
     <a-space class="sider-container" direction="vertical" size="large">
-        <div class="description">You can drag these nodes to the pane.</div>
         <a-space class="nodes" direction="vertical" size="small">
             <AnnoNode
                 v-for="anno in annos"
@@ -33,6 +32,6 @@ axios.get("http://localhost:5000/annotation").then((response) => {
 <style scoped>
 .sider-container {
     margin: 12px;
-    height: 1000px;
+    height: 82vh;
 }
 </style>

@@ -3,14 +3,14 @@
         <a-card class="container" ref="container">
             <a-space direction="vertical">
                 {{ data.text }}
-                <a-space wrap>
+                <div class="card-tags-container" wrap>
                     <a-tag
                         v-for="code in data.codes"
                         :color="code.codeGroup.color"
                     >
                         {{ code.name }}
                     </a-tag>
-                </a-space>
+                </div>
             </a-space>
         </a-card>
         <Handle v-if="inGraph && isHovering" :position="Position.Top" />
@@ -30,5 +30,13 @@ const isHovering = ref(false);
 <style scoped>
 .dndflow .container {
     width: 240px;
+}
+.container {
+    border-radius: 4px;
+}
+.card-tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 </style>
