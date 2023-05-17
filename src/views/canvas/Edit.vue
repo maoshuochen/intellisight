@@ -7,13 +7,13 @@
                     @edge-update="onEdgeUpdate"
                     :connection-line-options="{ type: 'smoothstep' }"
                 >
+                    <Controls />
                     <template #node-custom="props">
                         <AnnoNode v-bind="props" :in-graph="true" />
                     </template>
                     <template #edge-custom="props">
                         <CustomEdge v-bind="props" />
                     </template>
-                    <Controls />
                     <Background />
                 </VueFlow>
             </div>
@@ -31,15 +31,12 @@ import { Background } from "@vue-flow/background";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/controls/dist/style.css";
+import { Message } from "@arco-design/web-vue";
 import { nextTick, watch, onMounted, onBeforeUnmount } from "vue";
 import Sidebar from "./Sidebar.vue";
 import AnnoNode from "./nodes/AnnoNode.vue";
 import CustomEdge from "./CustomEdge.vue";
 
-let id = 0;
-function getId() {
-    return `dndnode_${id++}`;
-}
 const {
     findNode,
     onConnect,
@@ -85,6 +82,9 @@ function onDrop(event) {
         x: event.clientX - left,
         y: event.clientY - top,
     });
+    function getId() {
+        return self.crypto.randomUUID();
+    }
     const newNode = {
         id: getId(),
         type: "custom",
@@ -110,7 +110,7 @@ function onDrop(event) {
         );
     });
 }
-//Save
+//Save & Restore
 const flowKey = "example-flow";
 onMounted(() => {
     onRestore();
@@ -125,10 +125,14 @@ function onSave(e) {
     }
     e.preventDefault();
     localStorage.setItem(flowKey, JSON.stringify(toObject()));
-    console.log("Save");
+    Message.success({
+        content: "保存成功",
+        position: "bottom",
+    });
 }
 function onRestore() {
     const flow = JSON.parse(localStorage.getItem(flowKey));
+    console.log(flow);
     if (flow) {
         const [x = 0, y = 0] = flow.position;
         setNodes(flow.nodes);
