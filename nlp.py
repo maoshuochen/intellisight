@@ -1,36 +1,30 @@
-# TODO:
-# Use openai to replace NLP function
-
 from urllib import response
 from flask import Blueprint, Response, request
-from keybert import KeyBERT
-import jieba
-from transformers import pipeline
-
-import os
-from dotenv import load_dotenv  # python-dotenv
-import openai
-import ast
-
 nlp = Blueprint('nlp', __name__)
 
-load_dotenv()
-openai.api_key = os.getenv('OPENAI_API_KEY')
+from transformers import pipeline
 
 @nlp.route('/nlp/classification', methods=['POST'])
 def classfication():
     input = request.get_json()['input']
     codes = request.get_json()['codes']
-    model = './Model/multilingual-MiniLMv2-L6-mnli-xnli'
+    model_id = './Model/multilingual-MiniLMv2-L6-mnli-xnli'
+    # ------- BetterTransformer TEST: Not support DeBERTa ---------
+    # from transformers import AutoModel
+    # from optimum.bettertransformer import BetterTransformer
+    # model = AutoModel.from_pretrained(model_id)
+    # model = model.to(0)
+    # model_bt = BetterTransformer.transform(model, keep_original_model=True)
     classfier = pipeline('zero-shot-classification',
-                         model=model)
+                         model=model_id)
     result = classfier(input, candidate_labels=codes)
     print(result['labels'])
     return result['labels']
 
-
 @nlp.route('/nlp/keyword', methods=['POST'])
 def keyword():
+    from keybert import KeyBERT
+    import jieba
     input = request.get_json()['input']
     input = " ".join(jieba.cut(input))
     model = KeyBERT(model="./Model/paraphrase-multilingual-MiniLM-L12-v2")
@@ -41,8 +35,14 @@ def keyword():
             result.append(keyword[0])
     print(result)
     return result
-# ------OPENAI TEST-------
+# ------OPENAI TEST: Cost too many token & can't align the response format-------
 # def keyword_extraction_openai():
+#     import os
+#     from dotenv import load_dotenv
+#     import openai
+#     import ast
+#     load_dotenv()
+#     openai.api_key = os.getenv('OPENAI_API_KEY')
 #     input = request.get_json()['input']
 #     response = openai.Completion.create(
 #         model="text-davinci-003",

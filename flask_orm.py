@@ -262,4 +262,8 @@ def highlight_meta():
 
 # Enable AutoReload
 if __name__ == "__main__":
+    import jieba
+    jieba.initialize()
     app.run(debug=True)
+
+    
