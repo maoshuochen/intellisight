@@ -15,11 +15,38 @@
                     item-key="id"
                 >
                     <template #header>
-                        <div
-                            class="code-group-header"
-                            :style="{ color: fontColor(group.color) }"
-                        >
-                            {{ group.name }}
+                        <div class="code-group-header">
+                            <p :style="{ color: fontColor(group.color) }">
+                                {{ group.name }}
+                            </p>
+                            <a-dropdown>
+                                <icon-more class="dropdown-button" />
+                                <template #content>
+                                    <a-dsubmenu
+                                        value="option-2-2"
+                                        trigger="hover"
+                                    >
+                                        <template #default>Color</template>
+                                        <template #content>
+                                            <a-doption
+                                                v-for="color in colorList"
+                                                :value="color"
+                                                :style="{
+                                                    color: fontColor(color),
+                                                }"
+                                            >
+                                                {{
+                                                    color.replace(
+                                                        color[0],
+                                                        color[0].toUpperCase()
+                                                    )
+                                                }}
+                                            </a-doption>
+                                        </template>
+                                    </a-dsubmenu>
+                                    <a-doption>Sort by</a-doption>
+                                </template>
+                            </a-dropdown>
                         </div>
                     </template>
                     <template #item="{ element: code }">
@@ -126,6 +153,7 @@ onMounted(() => {
     getCodeGroup();
     getCodes();
 });
+const colorList = ref(["blue", "orange", "purple"]);
 
 //Data formater
 function groupCodes(codes) {
@@ -293,10 +321,20 @@ function postCodeGroup(newCodeGroup) {
     background-color: #fff;
 }
 .code-group-header {
-    font-size: 16px;
-    font-weight: 600;
     padding: 10px 16px;
     background-color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.code-group-header p {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+.code-group-header .dropdown-button {
+    cursor: pointer;
+    color: var(--color-neutral-7);
 }
 .code-group-element {
     display: flex;

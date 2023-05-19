@@ -72,6 +72,7 @@
 import axios from "axios";
 import { store } from "/src/store.js";
 import { computed, ref, onMounted } from "vue";
+// import { keywordExtraction, multiLabelClassfication } from "/src/api.js";
 
 const props = defineProps(["anno"]);
 const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
@@ -121,13 +122,33 @@ function init() {
     });
 }
 
-function getPredictCodes() {
+async function getPredictCodes() {
     //request classfication
     let requestCodes = [];
     codes.value.forEach((code) => {
         let requestCode = code.name;
         requestCodes.push(requestCode);
     });
+    // --------- OPENAI TEST -------
+    // const labels = await multiLabelClassfication(text.value, requestCodes);
+    // console.log(labels);
+    // labels.forEach((label) => {
+    //     let found = codes.value.find((code) => code.name == label);
+    //     if (selectedCodes.value) {
+    //         let index = selectedCodes.value.findIndex(
+    //             (item) => item.id == found.id
+    //         );
+    //         if (index == -1) {
+    //             found.bordered = false;
+    //         } else {
+    //             found.bordered = true;
+    //         }
+    //     } else {
+    //         found.bordered = false;
+    //     }
+    //     predictCodes.value.push(found);
+    //     isLoadingClassification.value = false;
+    // });
     let request = {
         input: text.value,
         codes: requestCodes,
@@ -154,13 +175,17 @@ function getPredictCodes() {
             });
         });
 }
-function getPredictKeywords() {
+async function getPredictKeywords() {
     let request = { input: text.value };
     axios
         .post("http://localhost:5000/nlp/keyword", request)
         .then((response) => {
             predictKeywords.value = response.data;
         });
+    // --------- OPENAI TEST -------
+    // const keywords = await keywordExtraction(text.value);
+    // console.log(keywords);
+    // predictKeywords.value = keywords;
 }
 
 //operations

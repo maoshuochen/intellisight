@@ -66,7 +66,6 @@ onConnect((params) => {
     params.updatable = true;
     params.events = {
         doubleClick: (e) => {
-            console.log(e.edge.data);
             e.edge.data.labelEditing = !e.edge.data.labelEditing;
         },
     };
@@ -136,6 +135,13 @@ function onRestore() {
     if (flow) {
         const [x = 0, y = 0] = flow.position;
         setNodes(flow.nodes);
+        for (const edge of flow.edges) {
+            edge.events = {
+                doubleClick: (e) => {
+                    e.edge.data.labelEditing = !e.edge.data.labelEditing;
+                },
+            };
+        }
         setEdges(flow.edges);
         setTransform({ x, y, zoom: flow.zoom || 0 });
     }

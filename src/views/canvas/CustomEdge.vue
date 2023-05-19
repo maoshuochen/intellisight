@@ -12,11 +12,13 @@
             class="nodrag nopan"
         >
             <a-input
+                ref="inputRef"
                 class="edge-label-input"
                 v-show="data.labelEditing"
                 v-model="data.labelText"
                 placeholder="Enter something"
                 @blur="data.labelEditing = false"
+                @enter="data.labelEditing = false"
             />
             <p
                 class="edge-label-text"
@@ -31,7 +33,7 @@
 
 <script setup>
 import { BaseEdge, EdgeLabelRenderer, getSmoothStepPath } from "@vue-flow/core";
-import { computed } from "vue";
+import { watch, ref, computed, nextTick } from "vue";
 
 const props = defineProps({
     id: {
@@ -74,12 +76,18 @@ const props = defineProps({
         type: Object,
         required: false,
     },
-    //custom
-    data: {},
 });
-
+const inputRef = ref(null);
 props.data.labelEditing = false;
-props.data.labelText = "";
+watch(
+    () => props.data.labelEditing,
+    (newVal, oldVal) => {
+        if (newVal)
+            nextTick(() => {
+                inputRef.value.focus();
+            });
+    }
+);
 
 const path = computed(() => getSmoothStepPath(props));
 </script>
