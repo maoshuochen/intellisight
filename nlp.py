@@ -1,10 +1,21 @@
-from flask import Blueprint, request
+# TODO:
+# Use openai to replace NLP function
+
+from urllib import response
+from flask import Blueprint, Response, request
 from keybert import KeyBERT
 import jieba
 from transformers import pipeline
 
+import os
+from dotenv import load_dotenv  # python-dotenv
+import openai
+import ast
+
 nlp = Blueprint('nlp', __name__)
 
+load_dotenv()
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 @nlp.route('/nlp/classification', methods=['POST'])
 def classfication():
@@ -30,3 +41,19 @@ def keyword():
             result.append(keyword[0])
     print(result)
     return result
+# ------OPENAI TEST-------
+# def keyword_extraction_openai():
+#     input = request.get_json()['input']
+#     response = openai.Completion.create(
+#         model="text-davinci-003",
+#         prompt="Extract top-5 keywords from this text, return as python array format:\n"+input,
+#         temperature=0.5,
+#         max_tokens=60,
+#         top_p=1.0,
+#         frequency_penalty=0.8,
+#         presence_penalty=0.0,
+#         )
+#     print(response)
+#     answer = response.choices[0].text.split('[')[1].split(']')[0]
+#     keywords = ast.literal_eval('['+answer+']')
+#     return keywords

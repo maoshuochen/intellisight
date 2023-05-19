@@ -187,8 +187,8 @@ def code_by_id(code_id):
     if request.method == 'PUT':
         new_code = deserialization(request.get_json(), CodeSchema)
         old_code = db.session.query(Code).filter_by(id=str(code_id)).first()
-        # Change Code Group Property
         old_code.code_group = new_code.code_group
+        old_code.name = new_code.name
         db.session.commit()
         return query_all(Code, CodeSchema)
     if request.method == 'DELETE':
