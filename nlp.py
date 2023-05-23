@@ -1,5 +1,4 @@
-from urllib import response
-from flask import Blueprint, Response, request
+from flask import Blueprint, request
 nlp = Blueprint('nlp', __name__)
 
 from transformers import pipeline
@@ -27,7 +26,7 @@ def keyword():
     import jieba
     input = request.get_json()['input']
     input = " ".join(jieba.cut(input))
-    model = KeyBERT(model="./Model/paraphrase-multilingual-MiniLM-L12-v2")
+    model = KeyBERT(model="./Model/text2vec-base-chinese")
     keywords = model.extract_keywords(input)
     result = []
     for keyword in keywords:
@@ -35,25 +34,4 @@ def keyword():
             result.append(keyword[0])
     print(result)
     return result
-# ------OPENAI TEST: Cost too many token & can't align the response format-------
-# def keyword_extraction_openai():
-#     import os
-#     from dotenv import load_dotenv
-#     import openai
-#     import ast
-#     load_dotenv()
-#     openai.api_key = os.getenv('OPENAI_API_KEY')
-#     input = request.get_json()['input']
-#     response = openai.Completion.create(
-#         model="text-davinci-003",
-#         prompt="Extract top-5 keywords from this text, return as python array format:\n"+input,
-#         temperature=0.5,
-#         max_tokens=60,
-#         top_p=1.0,
-#         frequency_penalty=0.8,
-#         presence_penalty=0.0,
-#         )
-#     print(response)
-#     answer = response.choices[0].text.split('[')[1].split(']')[0]
-#     keywords = ast.literal_eval('['+answer+']')
-#     return keywords
+
