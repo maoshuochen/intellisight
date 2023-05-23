@@ -1,10 +1,10 @@
 import axios from "axios";
-const apiKey = "xx";
-const model = "text-curie-001"; //text-davinci-003 //gpt-3.5-turbo
-const url = "https://api.openai.com/v1/completions";
-const client = axios.create({
+const openaiApiKey = "xx";
+const openaiModel = "text-curie-001"; //text-davinci-003 //gpt-3.5-turbo
+const openaiUrl = "https://api.openai.com/v1/completions";
+const openaiClient = axios.create({
     headers: {
-        Authorization: "Bearer " + apiKey,
+        Authorization: "Bearer " + openaiApiKey,
     },
     proxy: {
         host: "127.0.0.1",
@@ -19,7 +19,7 @@ export async function keywordExtraction(input) {
         Array:\n
     `;
     const request = {
-        model: model,
+        model: openaiModel,
         prompt: prompt,
         // messages: [
         //     {
@@ -29,7 +29,7 @@ export async function keywordExtraction(input) {
         // ],
     };
     let result = "";
-    await client.post(url, request).then(async (response) => {
+    await openaiClient.post(openaiUrl, request).then(async (response) => {
         console.log(response);
         // const answer = await response.data.choices[0].message.content;
         const answer = await response.data.choices[0].text;
@@ -51,7 +51,7 @@ export async function multiLabelClassfication(text, labels) {
         Classification result(as python array format in one line, the array should have all the same labels I gave you): \n
     `;
     const request = {
-        model: model,
+        model: openaiModel,
         prompt: prompt,
         // messages: [
         //     {
@@ -61,7 +61,7 @@ export async function multiLabelClassfication(text, labels) {
         // ],
     };
     let result = "";
-    await client.post(url, request).then(async (response) => {
+    await openaiClient.post(openaiUrl, request).then(async (response) => {
         console.log(response);
         // const answer = await response.data.choices[0].message.content;
         const answer = await response.data.choices[0].text;
