@@ -69,7 +69,7 @@ sympy==1.11.1
 threadpoolctl==3.1.0
 tokenizers==0.13.2
 tomli==2.0.1
-torch @ file:///D:/Study/Thesis/Prototype/backend-py39/Lib/whl/torch-2.0.0%2Bcu117-cp39-cp39-win_amd64.whl
+torch
 torchvision==0.15.1
 tqdm==4.65.0
 transformers==4.29.1
