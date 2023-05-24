@@ -19,7 +19,7 @@ app = Flask(__name__)
 app.register_blueprint(nlp)
 CORS(app)
 load_dotenv()
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+os.getenv('DATABASE_PATH')
+app.config['SQLALCHEMY_DATABASE_URI'] = r'sqlite:///'+os.path.abspath('database.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
