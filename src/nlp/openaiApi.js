@@ -1,18 +1,20 @@
 import axios from "axios";
 import rateLimit from "axios-rate-limit";
 const openaiModel = "gpt-3.5-turbo";
-const openaiUrl = "https://api.openai.com/v1/chat/completions";
+const openaiUrl = "https://api.api2gpt.com/v1/chat/completions";
+// const openaiUrl = "https://api.openai.com/v1/chat/completions";
 const openaiClient = rateLimit(
     axios.create({
         headers: {
-            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            // Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+            Authorization: `Bearer ${import.meta.env.VITE_API2GPT_API_KEY}`,
         },
         proxy: {
             host: "127.0.0.1",
             port: 7890,
         },
     }),
-    { maxRequests: 3, perMilliseconds: 400000 }
+    { maxRequests: 2, perMilliseconds: 10000 }
 );
 
 export async function keywordExtraction(input) {

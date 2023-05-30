@@ -75,8 +75,8 @@
 import axios from "axios";
 import { store } from "/src/store.js";
 import { computed, ref, onMounted } from "vue";
-// import { keywordExtraction, classification } from "/src/huggingfaceApi";
-import { keywordExtraction, classification } from "/src/openAiApi";
+// import { keywordExtraction, classification } from "/src/nlp/huggingfaceApi";
+import { keywordExtraction, classification } from "/src/nlp/openaiApi";
 
 const props = defineProps(["anno"]);
 const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
@@ -128,7 +128,6 @@ function init() {
 }
 
 async function getPredictCodes() {
-    //request classfication
     //------------API----------
     let requestCodes = [];
     codes.value.forEach((code) => {
@@ -137,8 +136,7 @@ async function getPredictCodes() {
     });
     const result = await classification(text.value, requestCodes);
     console.log(result);
-    const labels = result;
-    labels.forEach((label) => {
+    result.forEach((label) => {
         let found = codes.value.find((code) => code.name == label);
         if (selectedCodes.value) {
             let index = selectedCodes.value.findIndex(
