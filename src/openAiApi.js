@@ -1,74 +1,77 @@
 import axios from "axios";
-const openaiApiKey = "xx";
-const openaiModel = "text-curie-001"; //text-davinci-003 //gpt-3.5-turbo
-const openaiUrl = "https://api.openai.com/v1/completions";
-const openaiClient = axios.create({
-    headers: {
-        Authorization: "Bearer " + openaiApiKey,
-    },
-    proxy: {
-        host: "127.0.0.1",
-        port: 7890,
-    },
-});
+import rateLimit from "axios-rate-limit";
+const openaiModel = "gpt-3.5-turbo";
+const openaiUrl = "https://api.openai.com/v1/chat/completions";
+const openaiClient = rateLimit(
+    axios.create({
+        headers: {
+            Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+        },
+        proxy: {
+            host: "127.0.0.1",
+            port: 7890,
+        },
+    }),
+    { maxRequests: 3, perMilliseconds: 400000 }
+);
 
 export async function keywordExtraction(input) {
     let prompt = `
-        Extract top-5 keywords from this text, return as python array format in one line:\n
-        ${input}\n
-        Array:\n
+        Determine five topics that are being discussed in the following text, which is delimited by triple backticks.
+        
+        Make each item one or two words long. And the item should be the same language as the sample
+        
+        Format your response as a python array separated by commas. No more other things.
+        
+        Text sample: '''${input}'''
     `;
     const request = {
         model: openaiModel,
-        prompt: prompt,
-        // messages: [
-        //     {
-        //         role: "system",
-        //         content: prompt,
-        //     },
-        // ],
+        temperature: 0,
+        messages: [
+            {
+                role: "user",
+                content: prompt,
+            },
+        ],
     };
     let result = "";
     await openaiClient.post(openaiUrl, request).then(async (response) => {
         console.log(response);
-        // const answer = await response.data.choices[0].message.content;
-        const answer = await response.data.choices[0].text;
-        const keywords = await eval(
-            "[" + answer.split("[")[1].split("]")[0] + "]"
-        );
+        const answer = await response.data.choices[0].message.content;
+        const keywords = await eval(answer);
         result = keywords;
     });
     console.log(result);
     return result;
 }
 
-export async function multiLabelClassfication(text, labels) {
-    let labelsArray = labels.toString();
+export async function classification(text, labels) {
     let prompt = `
-        Labels: ${labelsArray} \n 
-        Multi-labels classification (Sort the labels by how likely the text below belong to): \n 
-        ${text} \n
-        Classification result(as python array format in one line, the array should have all the same labels I gave you): \n
+        Here is some labels: ${labels} \n
+
+        Sort the labels by how similar with the following text, which is delimited by triple backticks.
+        
+        Format your response as a python array separated by commas. No more other things.
+        
+        Text sample: '''${text}'''
     `;
     const request = {
         model: openaiModel,
-        prompt: prompt,
-        // messages: [
-        //     {
-        //         role: "system",
-        //         content: prompt,
-        //     },
-        // ],
+        temperature: 0,
+        messages: [
+            {
+                role: "user",
+                content: prompt,
+            },
+        ],
     };
     let result = "";
     await openaiClient.post(openaiUrl, request).then(async (response) => {
         console.log(response);
-        // const answer = await response.data.choices[0].message.content;
-        const answer = await response.data.choices[0].text;
-        const sortedLabels = await eval(
-            "[" + answer.split("[")[1].split("]")[0] + "]"
-        );
-        result = sortedLabels;
+        const answer = await response.data.choices[0].message.content;
+        const keywords = await eval(answer);
+        result = keywords;
     });
     console.log(result);
     return result;

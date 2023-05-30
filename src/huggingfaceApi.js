@@ -1,4 +1,5 @@
 import axios from "axios";
+import { store } from "/src/store.js";
 
 const client = axios.create({
     headers: {
@@ -11,12 +12,10 @@ export async function keywordExtraction(input) {
         data: [input],
     };
     let output;
-    await client
-        .post("https://maoshuochen-keybert.hf.space/api/predict", request)
-        .then((response) => {
-            console.log(response);
-            output = eval(response.data.data[0]);
-        });
+    await client.post(store.url.keywordExtraction, request).then((response) => {
+        console.log(response);
+        output = eval(response.data.data[0]);
+    });
     return output;
 }
 
@@ -30,14 +29,9 @@ export async function classification(text, labels) {
     };
     console.log(request);
     let output;
-    await client
-        .post(
-            "https://api-inference.huggingface.co/models/MoritzLaurer/ernie-m-base-mnli-xnli",
-            request
-        )
-        .then((response) => {
-            console.log(response);
-            output = response.data;
-        });
+    await client.post(store.url.classification, request).then((response) => {
+        console.log(response);
+        output = response.data.labels;
+    });
     return output;
 }

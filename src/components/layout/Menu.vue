@@ -26,19 +26,24 @@
             </router-link>
             <a-menu-item-group title="Analysis"></a-menu-item-group>
             <router-link to="/canvas">
-                <a-menu-item class="menu-item" key="7">
+                <a-menu-item class="menu-item" key="5">
                     <icon-fullscreen class="menu-item-icon" />Canvas
                 </a-menu-item>
             </router-link>
             <a-menu-item-group title="People"></a-menu-item-group>
             <router-link to="/team">
-                <a-menu-item class="menu-item" key="5">
+                <a-menu-item class="menu-item" key="6">
                     <icon-user-group class="menu-item-icon" />Team
                 </a-menu-item>
             </router-link>
             <router-link to="/participant">
-                <a-menu-item class="menu-item" key="6">
+                <a-menu-item class="menu-item" key="participant">
                     <icon-user class="menu-item-icon" />Participant
+                </a-menu-item>
+            </router-link>
+            <router-link to="/settings">
+                <a-menu-item class="menu-item" key="settings">
+                    <icon-user class="menu-item-icon" />Settings
                 </a-menu-item>
             </router-link>
         </a-menu>

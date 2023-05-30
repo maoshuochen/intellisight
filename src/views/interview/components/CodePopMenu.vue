@@ -13,15 +13,12 @@
             </a-tag>
         </a-space>
         <p class="subtitle" v-if="predictCodes">Recommendation</p>
-        <a-skeleton :animation="true" v-if="isLoadingClassification">
-            <a-space
-                direction="vertical"
-                :style="{ width: '100%' }"
-                size="small"
-            >
-                <a-skeleton-line line-height="15" :rows="2" />
-            </a-space>
-        </a-skeleton>
+        <a-space size="small" v-if="isLoadingClassification">
+            <a-spin />
+            <a-typography-text type="secondary">
+                Loading Rec Codes
+            </a-typography-text>
+        </a-space>
         <a-space wrap v-if="predictCodes && !isLoadingClassification">
             <a-tag
                 v-for="code in predictCodes"
@@ -32,6 +29,12 @@
             >
                 {{ code.name }}
             </a-tag>
+        </a-space>
+        <a-space size="small" v-if="isLoadingKeyword">
+            <a-spin />
+            <a-typography-text type="secondary">
+                Loading Keywords
+            </a-typography-text>
         </a-space>
         <a-space direction="vertical" :size="2">
             <div
@@ -72,7 +75,8 @@
 import axios from "axios";
 import { store } from "/src/store.js";
 import { computed, ref, onMounted } from "vue";
-import { keywordExtraction, classification } from "/src/huggingfaceApi";
+// import { keywordExtraction, classification } from "/src/huggingfaceApi";
+import { keywordExtraction, classification } from "/src/openAiApi";
 
 const props = defineProps(["anno"]);
 const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
@@ -83,6 +87,7 @@ const selectedCodes = ref([]);
 const predictCodes = ref([]);
 const predictKeywords = ref([]);
 const isLoadingClassification = ref(true);
+const isLoadingKeyword = ref(true);
 const isHoveringKeyword = ref([]);
 
 function fontColor(color) {
@@ -124,6 +129,7 @@ function init() {
 
 async function getPredictCodes() {
     //request classfication
+    //------------API----------
     let requestCodes = [];
     codes.value.forEach((code) => {
         let requestCode = code.name;
@@ -131,7 +137,7 @@ async function getPredictCodes() {
     });
     const result = await classification(text.value, requestCodes);
     console.log(result);
-    const labels = result.labels;
+    const labels = result;
     labels.forEach((label) => {
         let found = codes.value.find((code) => code.name == label);
         if (selectedCodes.value) {
@@ -183,9 +189,12 @@ async function getPredictKeywords() {
     //     .post("http://localhost:5000/nlp/keyword", request)
     //     .then((response) => {
     //         predictKeywords.value = response.data;
+    //         isLoadingKeyword.value = false;
     //     });
+    //---------API---------
     const keywords = await keywordExtraction(text.value);
     predictKeywords.value = keywords;
+    isLoadingKeyword.value = false;
 }
 
 //operations

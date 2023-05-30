@@ -21,6 +21,7 @@ import CanvasEdit from "./views/canvas/Edit.vue";
 import Team from "./views/Team.vue";
 import ParticipantLayout from "./views/participant/Layout.vue";
 import ParticipantList from "./views/participant/List.vue";
+import Settings from "./views/Settings.vue";
 import NotFound from "./views/NotFound.vue";
 
 const app = createApp(App);
@@ -72,6 +73,7 @@ const routes = [
             { path: "", name: "Participant List", component: ParticipantList },
         ],
     },
+    { path: "/settings", name: "Settings", component: Settings },
 ];
 const router = createRouter({
     history: createWebHashHistory(),
