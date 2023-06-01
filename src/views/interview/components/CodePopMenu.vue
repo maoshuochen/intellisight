@@ -12,6 +12,7 @@
                 {{ code.name }}
             </a-tag>
         </a-space>
+
         <p class="subtitle" v-if="predictCodes">Recommendation</p>
         <a-space size="small" v-if="isLoadingClassification">
             <a-spin />
@@ -67,6 +68,18 @@
         <div class="operations">
             <a-button type="primary" @click="confirm">确定</a-button>
             <a-button @click="cancel">取消</a-button>
+            <a-select
+                v-model="store.interview.nlpModel"
+                style="width: 110px"
+                default-input-value="python"
+                size="mini"
+                placeholder="Models"
+                :bordered="false"
+            >
+                <a-option value="openai">OpenAI API</a-option>
+                <a-option value="huggingface">Huggingface API</a-option>
+                <a-option value="python">Python Backend</a-option>
+            </a-select>
         </div>
     </div>
 </template>
@@ -125,7 +138,14 @@ function init() {
     });
 }
 
-import { keywordExtraction, classification } from "/src/nlp/pythonApi";
+// const nlpModel = ref(null);
+let keywordExtraction, classification;
+import(`/src/nlp/${store.interview.nlpModel}Api.js` /* @vite-ignore */).then(
+    (module) => {
+        keywordExtraction = module.keywordExtraction;
+        classification = module.classification;
+    }
+);
 async function getPredictCodes() {
     let requestCodes = [];
     codes.value.forEach((code) => {
