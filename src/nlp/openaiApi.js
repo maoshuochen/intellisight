@@ -3,6 +3,7 @@ import rateLimit from "axios-rate-limit";
 const openaiModel = "gpt-3.5-turbo";
 const openaiUrl = "https://api.api2gpt.com/v1/chat/completions";
 // const openaiUrl = "https://api.openai.com/v1/chat/completions";
+
 const openaiClient = rateLimit(
     axios.create({
         headers: {
@@ -14,7 +15,7 @@ const openaiClient = rateLimit(
             port: 7890,
         },
     }),
-    { maxRequests: 2, perMilliseconds: 10000 }
+    { maxRequests: 2, perMilliseconds: 1000 }
 );
 
 export async function keywordExtraction(input) {

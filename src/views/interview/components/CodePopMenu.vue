@@ -75,8 +75,6 @@
 import axios from "axios";
 import { store } from "/src/store.js";
 import { computed, ref, onMounted } from "vue";
-// import { keywordExtraction, classification } from "/src/nlp/huggingfaceApi";
-import { keywordExtraction, classification } from "/src/nlp/openaiApi";
 
 const props = defineProps(["anno"]);
 const emit = defineEmits(["closeCodePopMenu", "addAnnotation"]);
@@ -127,8 +125,8 @@ function init() {
     });
 }
 
+import { keywordExtraction, classification } from "/src/nlp/pythonApi";
 async function getPredictCodes() {
-    //------------API----------
     let requestCodes = [];
     codes.value.forEach((code) => {
         let requestCode = code.name;
@@ -153,43 +151,8 @@ async function getPredictCodes() {
         predictCodes.value.push(found);
         isLoadingClassification.value = false;
     });
-    //---------LOCAL NLP ----------
-    // let request = {
-    //     input: text.value,
-    //     codes: requestCodes,
-    // };
-    // axios
-    //     .post("http://localhost:5000/nlp/classification", request)
-    //     .then((response) => {
-    //         response.data.forEach((label) => {
-    //             let found = codes.value.find((code) => code.name == label);
-    //             if (selectedCodes.value) {
-    //                 let index = selectedCodes.value.findIndex(
-    //                     (item) => item.id == found.id
-    //                 );
-    //                 if (index == -1) {
-    //                     found.bordered = false;
-    //                 } else {
-    //                     found.bordered = true;
-    //                 }
-    //             } else {
-    //                 found.bordered = false;
-    //             }
-    //             predictCodes.value.push(found);
-    //             isLoadingClassification.value = false;
-    //         });
-    //     });
 }
 async function getPredictKeywords() {
-    //-----------LOCAL NLP-------
-    // let request = { input: text.value };
-    // axios
-    //     .post("http://localhost:5000/nlp/keyword", request)
-    //     .then((response) => {
-    //         predictKeywords.value = response.data;
-    //         isLoadingKeyword.value = false;
-    //     });
-    //---------API---------
     const keywords = await keywordExtraction(text.value);
     predictKeywords.value = keywords;
     isLoadingKeyword.value = false;
