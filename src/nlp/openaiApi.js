@@ -1,6 +1,6 @@
 import axios from "axios";
 import rateLimit from "axios-rate-limit";
-const openaiModel = "gpt-3.5-turbo";
+const openaiModel = "gpt-3.5-turbo-0301";
 const openaiUrl = "https://api.api2gpt.com/v1/chat/completions";
 // const openaiUrl = "https://api.openai.com/v1/chat/completions";
 
@@ -22,9 +22,12 @@ export async function keywordExtraction(input) {
     let prompt = `
         Determine five topics that are being discussed in the following text, which is delimited by triple backticks.
         
-        Make each item one or two words long. And the item should be the same language as the sample
+        Make each item one or two words long. And the item should be the same language as the sample. 
+        If not sure what language the item is, use Chinese.
         
-        Format your response as a python array separated by commas. No more other things.
+        Format your response as a python array separated by commas.
+        Even if there is only one item, it should be wrapped with an array. 
+        No more other things.
         
         Text sample: '''${input}'''
     `;

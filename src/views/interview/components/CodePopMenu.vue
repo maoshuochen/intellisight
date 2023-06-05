@@ -95,11 +95,6 @@ const codes = ref([]);
 const codeGroups = ref([]);
 const text = ref("");
 const selectedCodes = ref([]);
-const predictCodes = ref([]);
-const predictKeywords = ref([]);
-const isLoadingClassification = ref(true);
-const isLoadingKeyword = ref(true);
-const isHoveringKeyword = ref([]);
 
 function fontColor(color) {
     return `rgb(var(--${color}-7))`;
@@ -138,7 +133,13 @@ function init() {
     });
 }
 
-// const nlpModel = ref(null);
+//----------NLP-----------
+const predictCodes = ref([]);
+const predictKeywords = ref([]);
+const isLoadingClassification = ref(true);
+const isLoadingKeyword = ref(true);
+const isHoveringKeyword = ref([]);
+
 let keywordExtraction, classification;
 import(`/src/nlp/${store.interview.nlpModel}Api.js` /* @vite-ignore */).then(
     (module) => {
