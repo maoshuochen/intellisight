@@ -1,0 +1,12 @@
+{
+  "name": "intellisight",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "frontend:install": "npm --prefix frontend install",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "backend:venv": "python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt",
+    "backend:dev": "cd backend && .venv/bin/python app.py"
+  }
+}
