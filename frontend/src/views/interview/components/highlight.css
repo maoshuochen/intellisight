@@ -1,0 +1,24 @@
+.highlight-wrap {
+    cursor: pointer;
+    border-bottom: 2px solid var(--border);
+}
+
+.highlight-wrap:hover {
+    cursor: pointer;
+    background-color: var(--hover);
+}
+
+.highlight-wrap-hover {
+    cursor: pointer;
+    background-color: var(--hover);
+}
+
+.highlight-blue {
+    --border: #165dff;
+    --hover: #e8f3ff;
+}
+
+.highlight-purple {
+    --border: #722ed1;
+    --hover: #f5e8ff;
+}

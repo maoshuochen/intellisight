@@ -1,0 +1,357 @@
+<template>
+    <a-space direction="vertical" size="medium" fill>
+        <a-radio-group v-model="viewMode" size="small" type="button">
+            <a-radio value="Kanban">Kanban</a-radio>
+            <a-radio value="Table">Table</a-radio>
+        </a-radio-group>
+        <a-space v-if="viewMode == 'Kanban'" size="medium" align="start">
+            <div class="code-group-container" v-for="group in codes">
+                <draggable
+                    v-model="group.data"
+                    group="code"
+                    @start="isDragging = true"
+                    @end="isDragging = false"
+                    @change="dragChange"
+                    item-key="id"
+                >
+                    <template #header>
+                        <div class="code-group-header">
+                            <p :style="{ color: fontColor(group.color) }">
+                                {{ group.name }}
+                            </p>
+                            <a-dropdown>
+                                <icon-more class="dropdown-button" />
+                                <template #content>
+                                    <a-dsubmenu
+                                        value="option-2-2"
+                                        trigger="hover"
+                                    >
+                                        <template #default>Color</template>
+                                        <template #content>
+                                            <a-doption
+                                                v-for="color in colorList"
+                                                :value="color"
+                                                :style="{
+                                                    color: fontColor(color),
+                                                }"
+                                            >
+                                                {{
+                                                    color.replace(
+                                                        color[0],
+                                                        color[0].toUpperCase()
+                                                    )
+                                                }}
+                                            </a-doption>
+                                        </template>
+                                    </a-dsubmenu>
+                                    <a-doption>Sort by</a-doption>
+                                </template>
+                            </a-dropdown>
+                        </div>
+                    </template>
+                    <template #item="{ element: code }">
+                        <div class="code-group-element">
+                            <a-popover
+                                trigger="click"
+                                @ok="changeCodeName(code.id, updateCodeName)"
+                            >
+                                <a-tag class="tag" :color="group.color">
+                                    {{ code.name }}
+                                </a-tag>
+                                <template #content>
+                                    <a-space direction="vertical" size="small">
+                                        <a-input
+                                            v-model="updateCodeName"
+                                            placeholder="New Code Name"
+                                            :default-value="code.name"
+                                        >
+                                        </a-input>
+                                        <a-space size="medium">
+                                            <a-button
+                                                @click="
+                                                    changeCodeName(
+                                                        code.id,
+                                                        updateCodeName
+                                                    )
+                                                "
+                                                >重命名编码</a-button
+                                            >
+                                            <a-link
+                                                status="danger"
+                                                @click="deleteCode(code.id)"
+                                            >
+                                                <template #icon>
+                                                    <icon-delete />
+                                                </template>
+                                                删除
+                                            </a-link>
+                                        </a-space>
+                                    </a-space>
+                                </template>
+                            </a-popover>
+                            <a-typography-text
+                                :style="{ color: fontColor(group.color) }"
+                            >
+                                {{ code.usage }}
+                            </a-typography-text>
+                        </div>
+                    </template>
+                    <template #footer>
+                        <div class="code-group-footer">
+                            <a-popconfirm
+                                trigger="click"
+                                @ok="addNewCode(group.id)"
+                            >
+                                <a-link
+                                    type="text"
+                                    style="color: var(--color-neutral-6)"
+                                >
+                                    <template #icon> <icon-plus /> </template>
+                                    New Code
+                                </a-link>
+                                <template #icon>
+                                    <a-input
+                                        v-model="newCodeName"
+                                        placeholder="Code Name"
+                                    >
+                                    </a-input>
+                                </template>
+                            </a-popconfirm>
+                        </div>
+                    </template>
+                </draggable>
+            </div>
+            <a-popconfirm @ok="addNewGroup()">
+                <a-link type="text" style="color: var(--color-neutral-6)">
+                    <template #icon> <icon-plus /> </template>
+                    New Group
+                </a-link>
+                <template #icon>
+                    <a-input v-model="newGroupName" placeholder="Group Name">
+                    </a-input>
+                </template>
+            </a-popconfirm>
+        </a-space>
+        <a-table
+            v-if="viewMode == 'Table'"
+            :columns="columns"
+            :data="ungroupCodes(codes)"
+        >
+        </a-table>
+    </a-space>
+</template>
+
+<script setup>
+import { ref, onMounted } from "vue";
+import axios from "axios";
+import draggable from "vuedraggable"; //https://github.com/SortableJS/vue.draggable.next
+
+const viewMode = ref("Kanban");
+const codes = ref([]);
+const codeGroups = ref([]);
+onMounted(() => {
+    getCodeGroup();
+    getCodes();
+});
+const colorList = ref(["blue", "orange", "purple"]);
+
+//Data formater
+function groupCodes(codes) {
+    let groups = codeGroups.value;
+    groups.forEach((group) => (group.data = []));
+    codes.forEach((code) => {
+        code.usage = code.annotations.length;
+        let foundGroup = groups.find((group) => group.id == code.codeGroup.id);
+        foundGroup.data.push(code);
+    });
+    return groups;
+}
+function ungroupCodes(groups) {
+    let codes = [];
+    groups.forEach((group) => {
+        group.data.forEach((code) => {
+            code.usage = code.annotations.length;
+            codes.push(code);
+        });
+    });
+    return codes;
+}
+function fontColor(color) {
+    return `rgb(var(--${color}-7))`;
+}
+
+//Add new code
+const newCodeName = ref("");
+function addNewCode(groupId) {
+    let codeGroup = codeGroups.value.find((group) => group.id == groupId);
+    const newCode = {
+        name: newCodeName.value,
+        owner: "maoshuochen",
+        codeGroup: codeGroup,
+    };
+    let ungroupedCodes = ungroupCodes(codes.value);
+    ungroupedCodes.push(newCode);
+    delete newCode.codeGroup.data;
+    delete newCode.annotations;
+    delete newCode.usage;
+    postCode(newCode);
+    newCodeName.value = "";
+}
+
+const newGroupName = ref("");
+function addNewGroup() {
+    const newCodeGroup = {
+        name: newGroupName.value,
+        color: "blue",
+    };
+    postCodeGroup(newCodeGroup);
+    newGroupName.value = "";
+}
+
+//Drag code and update
+const isDragging = ref(false);
+function dragChange(event) {
+    if (event.added) {
+        let updateCode = event.added.element;
+        let newCodeGroup = codes.value.find((group) => {
+            return group.data.find((code) => code.id == updateCode.id);
+        });
+        updateCode.codeGroup = newCodeGroup;
+        delete updateCode.codeGroup.data;
+        delete updateCode.annotations;
+        delete updateCode.usage;
+        putCode(updateCode);
+    }
+}
+
+//Update code name
+const updateCodeName = ref("");
+function changeCodeName(id, name) {
+    let updateCode = ungroupCodes(codes.value).find((code) => code.id == id);
+    updateCode.name = name;
+    delete updateCode.codeGroup.data;
+    delete updateCode.annotations;
+    delete updateCode.usage;
+    console.log(updateCode);
+    putCode(updateCode);
+}
+
+//Detele code
+function deleteCode(id) {
+    axios
+        .delete(`http://localhost:5000/code/${id}`)
+        .then((response) => {
+            codes.value = groupCodes(response.data);
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+
+//Data for Table View
+const columns = [
+    { title: "Name", dataIndex: "name" },
+    { title: "Group", dataIndex: "codeGroup.name" },
+    { title: "Owner", dataIndex: "owner" },
+    { title: "Usage", dataIndex: "usage" },
+];
+
+//Database API
+function getCodes() {
+    axios
+        .get("http://localhost:5000/code")
+        .then((response) => {
+            codes.value = groupCodes(response.data);
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+function postCode(newCode) {
+    axios
+        .post("http://localhost:5000/code", newCode)
+        .then((response) => {
+            codes.value = groupCodes(response.data);
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+function putCode(updateCode) {
+    axios
+        .put(`http://localhost:5000/code/${updateCode.id}`, updateCode)
+        .then((response) => {
+            getCodes();
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+function getCodeGroup() {
+    axios
+        .get("http://localhost:5000/code-group")
+        .then((response) => {
+            codeGroups.value = response.data;
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+function postCodeGroup(newCodeGroup) {
+    axios
+        .post("http://localhost:5000/code-group", newCodeGroup)
+        .then((response) => {
+            codeGroups.value = response.data;
+            getCodes();
+        })
+        .catch((error) => {
+            console.error(error);
+        });
+}
+</script>
+
+<style scoped>
+.group {
+    background-color: #fff;
+}
+.code-group-container {
+    width: 200px;
+    padding: 8px 0;
+    border-radius: 4px;
+    background-color: #fff;
+}
+.code-group-header {
+    padding: 10px 16px;
+    background-color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.code-group-header p {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0;
+}
+.code-group-header .dropdown-button {
+    cursor: pointer;
+    color: var(--color-neutral-7);
+}
+.code-group-element {
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+    padding: 10px 16px;
+    background-color: #fff;
+    cursor: move;
+}
+.code-group-element:hover {
+    background-color: var(--color-neutral-1);
+    transition: 0.2s;
+}
+.code-group-element .tag {
+    cursor: pointer;
+}
+.code-group-footer {
+    padding: 6px 16px;
+}
+</style>
