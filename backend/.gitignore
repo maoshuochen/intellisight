@@ -1,0 +1,14 @@
+# Venv
+__pycache__/
+Lib/
+Include/
+Scripts/
+share/
+/pyvenv.cfg
+
+# Models
+Model/
+
+# dotenv
+/.env
+
