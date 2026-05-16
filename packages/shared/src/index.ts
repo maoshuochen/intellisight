@@ -127,6 +127,25 @@ export const createCodeSchema = z.object({
   owner: z.string().optional()
 });
 
+export const createInterviewSchema = z.object({
+  projectId: uuidSchema,
+  name: z.string().min(1),
+  sample: z.string().optional(),
+  owner: z.string().optional(),
+  length: z.string().optional(),
+  participantName: z.string().optional(),
+  paragraphs: z
+    .array(
+      z.object({
+        text: z.string().min(1),
+        speaker: z.string().optional(),
+        startTime: z.string().optional(),
+        endTime: z.string().optional()
+      })
+    )
+    .min(1)
+});
+
 export const createAnnotationSchema = z.object({
   projectId: uuidSchema,
   paragraphId: uuidSchema,

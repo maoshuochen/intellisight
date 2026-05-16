@@ -27,5 +27,10 @@ export const authPlugin = fp(async (app) => {
     }
 
     request.user = { id: data.user.id, email: data.user.email };
+    await app.supabase.from("profiles").upsert({
+      user_id: data.user.id,
+      display_name: data.user.user_metadata?.name ?? data.user.email ?? "Researcher",
+      avatar_url: data.user.user_metadata?.avatar_url ?? null
+    });
   });
 });

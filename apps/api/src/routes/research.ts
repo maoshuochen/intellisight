@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { createAnnotationSchema, createCodeSchema, uuidSchema } from "@intellisight/shared";
+import { createAnnotationSchema, createCodeSchema, createInterviewSchema, uuidSchema } from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
 import { toCamel, toSnake } from "../utils/case.js";
 
@@ -16,6 +16,40 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
 
     if (error) throw error;
     return toCamel(data);
+  });
+
+  app.post("/interviews", async (request, reply) => {
+    const body = createInterviewSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+
+    const { data: interview, error } = await app.supabase
+      .from("interviews")
+      .insert({
+        project_id: body.projectId,
+        name: body.name,
+        sample: body.sample ?? null,
+        owner: body.owner ?? request.user.email ?? null,
+        length: body.length ?? null,
+        participant_name: body.participantName ?? null
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    const { error: paragraphError } = await app.supabase.from("paragraphs").insert(
+      body.paragraphs.map((paragraph, index) => ({
+        project_id: body.projectId,
+        interview_id: interview.id,
+        text: paragraph.text,
+        speaker: paragraph.speaker ?? null,
+        start_time: paragraph.startTime ?? null,
+        end_time: paragraph.endTime ?? null,
+        sort_order: index + 1
+      }))
+    );
+    if (paragraphError) throw paragraphError;
+
+    return reply.code(201).send(toCamel(interview));
   });
 
   app.get("/interviews/:id/paragraphs", async (request) => {

@@ -1,4 +1,4 @@
-import { Card, Grid, Statistic, Typography } from "@arco-design/web-react";
+import { Alert, Card, Empty, Grid, Statistic, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Annotation, Code, Interview } from "@intellisight/shared";
 import { api } from "../lib/api";
@@ -23,9 +23,20 @@ export function Home() {
     queryFn: () => api.get<Annotation[]>(`/annotations?projectId=${projectId}`)
   });
 
+  if (!projectId) {
+    return (
+      <div className="page">
+        <Empty description="Create or select a project from the sidebar to begin." />
+      </div>
+    );
+  }
+
+  const error = interviews.error ?? codes.error ?? annotations.error;
+
   return (
     <div className="page">
       <Typography.Title heading={3}>Research workspace</Typography.Title>
+      {error && <Alert className="page-alert" type="error" content={error.message} />}
       <Grid.Row gutter={16}>
         <Grid.Col span={8}>
           <Card bordered={false}>

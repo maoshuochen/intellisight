@@ -47,6 +47,10 @@ a {
   margin: 20px;
 }
 
+.project-alert {
+  margin: 8px 16px 18px;
+}
+
 .nav-menu {
   border-right: 0;
 }
@@ -63,6 +67,10 @@ a {
 
 .page {
   padding: 24px;
+}
+
+.page-alert {
+  margin-bottom: 16px;
 }
 
 .split-page {
@@ -114,6 +122,13 @@ a {
 
 .full-width-space {
   width: 100%;
+}
+
+.empty-action {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  padding: 24px 0;
 }
 
 .canvas-card {

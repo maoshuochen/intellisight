@@ -1,4 +1,4 @@
-import { Button, Input, Select, Space, Spin, Trigger } from "@arco-design/web-react";
+import { Alert, Button, Input, Select, Space, Spin, Trigger } from "@arco-design/web-react";
 import { IconPlus } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -27,6 +27,9 @@ export function ProjectSwitcher() {
   });
 
   if (projectsQuery.isLoading) return <Spin className="project-spin" />;
+  if (projectsQuery.error) {
+    return <Alert className="project-alert" type="error" content={projectsQuery.error.message} />;
+  }
 
   const projects = projectsQuery.data ?? [];
   if (!projectId && projects[0]) setProjectId(projects[0].id);
@@ -38,6 +41,7 @@ export function ProjectSwitcher() {
         value={projectId ?? undefined}
         onChange={(value) => setProjectId(value)}
         options={projects.map((project) => ({ label: project.name, value: project.id }))}
+        notFoundContent="No projects yet"
       />
       <Trigger
         trigger="click"

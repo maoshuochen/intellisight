@@ -54,6 +54,51 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       edges: []
     });
 
+    const { data: interview } = await app.supabase
+      .from("interviews")
+      .insert({
+        project_id: project.id,
+        name: "Demo interview",
+        sample: "Usability study",
+        owner: request.user.email ?? "Researcher",
+        length: "12:30",
+        participant_name: "Participant A"
+      })
+      .select("*")
+      .single();
+
+    if (interview) {
+      await app.supabase.from("paragraphs").insert([
+        {
+          project_id: project.id,
+          interview_id: interview.id,
+          speaker: "Researcher",
+          start_time: "00:00",
+          end_time: "00:12",
+          sort_order: 1,
+          text: "Can you walk me through the last time you tried to organize interview notes after a research session?"
+        },
+        {
+          project_id: project.id,
+          interview_id: interview.id,
+          speaker: "Participant",
+          start_time: "00:13",
+          end_time: "00:44",
+          sort_order: 2,
+          text: "I usually paste everything into a document first, then copy quotes into a spreadsheet. The hardest part is keeping track of where each quote came from."
+        },
+        {
+          project_id: project.id,
+          interview_id: interview.id,
+          speaker: "Participant",
+          start_time: "00:45",
+          end_time: "01:08",
+          sort_order: 3,
+          text: "When there are several interviews, I spend a lot of time comparing repeated themes. It would help if the tool could suggest codes but still let me decide."
+        }
+      ]);
+    }
+
     return reply.code(201).send(toCamel(project));
   });
 };

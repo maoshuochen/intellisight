@@ -3,15 +3,20 @@ import path from "node:path";
 import process from "node:process";
 import { createClient } from "@supabase/supabase-js";
 import Database from "better-sqlite3";
+import { config } from "dotenv";
+
+config({ path: "apps/api/.env" });
+config();
 
 const sqlitePath = process.env.SQLITE_PATH ?? path.resolve("backend/database.db");
 const projectName = process.env.MIGRATION_PROJECT_NAME ?? "Legacy IntelliSight Project";
-const ownerUserId = process.env.MIGRATION_OWNER_USER_ID;
+let ownerUserId = process.env.MIGRATION_OWNER_USER_ID;
+const ownerEmail = process.env.MIGRATION_OWNER_EMAIL;
 const supabaseUrl = process.env.SUPABASE_URL;
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !serviceRoleKey || !ownerUserId) {
-  throw new Error("SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY and MIGRATION_OWNER_USER_ID are required.");
+if (!supabaseUrl || !serviceRoleKey) {
+  throw new Error("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required.");
 }
 
 if (!fs.existsSync(sqlitePath)) {
@@ -22,6 +27,16 @@ const sqlite = new Database(sqlitePath, { readonly: true });
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false }
 });
+
+if (!ownerUserId) {
+  const { data, error } = await supabase.auth.admin.listUsers();
+  if (error) throw error;
+  const user = ownerEmail ? data.users.find((item) => item.email === ownerEmail) : data.users[0];
+  if (!user) {
+    throw new Error("No Supabase Auth user found. Create/sign up a user first, or pass MIGRATION_OWNER_USER_ID.");
+  }
+  ownerUserId = user.id;
+}
 
 type Row = Record<string, unknown>;
 
