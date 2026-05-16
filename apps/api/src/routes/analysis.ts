@@ -1,9 +1,83 @@
 import type { FastifyPluginAsync } from "fastify";
-import { uuidSchema } from "@intellisight/shared";
+import { createCanvasSchema, createOutlineSchema, updateCanvasSchema, updateOutlineQuestionsSchema, uuidSchema } from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
 import { toCamel } from "../utils/case.js";
 
 export const analysisRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/outlines", async (request) => {
+    const projectId = uuidSchema.parse((request.query as { projectId?: string }).projectId);
+    await assertProjectRole(app, request.user.id, projectId);
+    const { data, error } = await app.supabase
+      .from("outlines")
+      .select("*, outline_questions(*)")
+      .eq("project_id", projectId)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return toCamel(
+      data.map((outline) => ({
+        ...outline,
+        questions: [...(outline.outline_questions ?? [])].sort((a, b) => a.sort_order - b.sort_order)
+      }))
+    );
+  });
+
+  app.post("/outlines", async (request, reply) => {
+    const body = createOutlineSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("outlines")
+      .insert({ project_id: body.projectId, name: body.name })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return reply.code(201).send(toCamel({ ...data, questions: [] }));
+  });
+
+  app.patch("/outlines/:id", async (request) => {
+    const outlineId = uuidSchema.parse((request.params as { id: string }).id);
+    const body = request.body as { name?: string };
+    const { data: outline, error: outlineError } = await app.supabase.from("outlines").select("project_id").eq("id", outlineId).single();
+    if (outlineError) throw outlineError;
+    await assertProjectRole(app, request.user.id, outline.project_id, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("outlines")
+      .update({ name: body.name })
+      .eq("id", outlineId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return toCamel(data);
+  });
+
+  app.put("/outlines/:id/questions", async (request) => {
+    const outlineId = uuidSchema.parse((request.params as { id: string }).id);
+    const body = updateOutlineQuestionsSchema.parse(request.body);
+    const { data: outline, error: outlineError } = await app.supabase.from("outlines").select("project_id").eq("id", outlineId).single();
+    if (outlineError) throw outlineError;
+    await assertProjectRole(app, request.user.id, outline.project_id, ["owner", "editor"]);
+    const { error: deleteError } = await app.supabase.from("outline_questions").delete().eq("outline_id", outlineId);
+    if (deleteError) throw deleteError;
+    if (body.questions.length) {
+      const { error: insertError } = await app.supabase.from("outline_questions").insert(
+        body.questions.map((question) => ({
+          outline_id: outlineId,
+          project_id: outline.project_id,
+          content: question.content,
+          tags: question.tags,
+          sort_order: question.sortOrder
+        }))
+      );
+      if (insertError) throw insertError;
+    }
+    const { data, error } = await app.supabase
+      .from("outlines")
+      .select("*, outline_questions(*)")
+      .eq("id", outlineId)
+      .single();
+    if (error) throw error;
+    return toCamel({ ...data, questions: [...(data.outline_questions ?? [])].sort((a, b) => a.sort_order - b.sort_order) });
+  });
+
   app.get("/canvases", async (request) => {
     const projectId = uuidSchema.parse((request.query as { projectId?: string }).projectId);
     await assertProjectRole(app, request.user.id, projectId);
@@ -14,6 +88,18 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .order("updated_at", { ascending: false });
     if (error) throw error;
     return toCamel(data);
+  });
+
+  app.post("/canvases", async (request, reply) => {
+    const body = createCanvasSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("canvases")
+      .insert({ project_id: body.projectId, name: body.name, nodes: [], edges: [] })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return reply.code(201).send(toCamel(data));
   });
 
   app.get("/canvases/:id", async (request) => {
@@ -33,7 +119,7 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .single();
     if (existingError) throw existingError;
     await assertProjectRole(app, request.user.id, existing.project_id, ["owner", "editor"]);
-    const body = request.body as { name?: string; nodes?: unknown[]; edges?: unknown[]; viewport?: unknown };
+    const body = updateCanvasSchema.parse(request.body);
     const { data, error } = await app.supabase
       .from("canvases")
       .update({

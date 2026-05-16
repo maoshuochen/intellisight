@@ -6,6 +6,7 @@ import { Codes } from "./pages/Codes";
 import { Highlights } from "./pages/Highlights";
 import { Home } from "./pages/Home";
 import { Interviews } from "./pages/Interviews";
+import { Outlines } from "./pages/Outlines";
 import { Placeholder } from "./pages/Placeholder";
 import { Settings } from "./pages/Settings";
 
@@ -15,7 +16,7 @@ const router = createBrowserRouter([
     element: <AppShell />,
     children: [
       { index: true, element: <Home /> },
-      { path: "outlines", element: <Placeholder title="Outlines" /> },
+      { path: "outlines", element: <Outlines /> },
       { path: "interviews", element: <Interviews /> },
       { path: "codes", element: <Codes /> },
       { path: "highlights", element: <Highlights /> },

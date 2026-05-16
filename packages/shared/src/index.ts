@@ -127,6 +127,23 @@ export const createCodeSchema = z.object({
   owner: z.string().optional()
 });
 
+export const createCodeGroupSchema = z.object({
+  projectId: uuidSchema,
+  name: z.string().min(1),
+  color: z.string().min(1).default("blue")
+});
+
+export const updateCodeGroupSchema = z.object({
+  name: z.string().min(1).optional(),
+  color: z.string().min(1).optional(),
+  sortOrder: z.number().int().optional()
+});
+
+export const updateCodeSchema = z.object({
+  name: z.string().min(1).optional(),
+  codeGroupId: uuidSchema.optional()
+});
+
 export const createInterviewSchema = z.object({
   projectId: uuidSchema,
   name: z.string().min(1),
@@ -154,6 +171,34 @@ export const createAnnotationSchema = z.object({
   endOffset: z.number().int().min(0),
   comment: z.string().optional(),
   codeIds: z.array(uuidSchema).min(1)
+});
+
+export const createOutlineSchema = z.object({
+  projectId: uuidSchema,
+  name: z.string().min(1)
+});
+
+export const updateOutlineQuestionsSchema = z.object({
+  questions: z.array(
+    z.object({
+      id: uuidSchema.optional(),
+      content: z.string().min(1),
+      tags: z.array(z.string()).default([]),
+      sortOrder: z.number().int().min(0)
+    })
+  )
+});
+
+export const createCanvasSchema = z.object({
+  projectId: uuidSchema,
+  name: z.string().min(1)
+});
+
+export const updateCanvasSchema = z.object({
+  name: z.string().min(1).optional(),
+  nodes: z.array(z.record(z.unknown())).optional(),
+  edges: z.array(z.record(z.unknown())).optional(),
+  viewport: z.record(z.unknown()).nullable().optional()
 });
 
 export const recommendCodesRequestSchema = z.object({

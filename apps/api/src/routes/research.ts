@@ -1,5 +1,13 @@
 import type { FastifyPluginAsync } from "fastify";
-import { createAnnotationSchema, createCodeSchema, createInterviewSchema, uuidSchema } from "@intellisight/shared";
+import {
+  createAnnotationSchema,
+  createCodeGroupSchema,
+  createCodeSchema,
+  createInterviewSchema,
+  updateCodeGroupSchema,
+  updateCodeSchema,
+  uuidSchema
+} from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
 import { toCamel, toSnake } from "../utils/case.js";
 
@@ -104,6 +112,40 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     return toCamel(data);
   });
 
+  app.post("/code-groups", async (request, reply) => {
+    const body = createCodeGroupSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+    const { count } = await app.supabase.from("code_groups").select("*", { count: "exact", head: true }).eq("project_id", body.projectId);
+    const { data, error } = await app.supabase
+      .from("code_groups")
+      .insert({
+        project_id: body.projectId,
+        name: body.name,
+        color: body.color,
+        sort_order: (count ?? 0) + 1
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return reply.code(201).send(toCamel(data));
+  });
+
+  app.patch("/code-groups/:id", async (request) => {
+    const groupId = uuidSchema.parse((request.params as { id: string }).id);
+    const body = updateCodeGroupSchema.parse(request.body);
+    const { data: group, error: groupError } = await app.supabase.from("code_groups").select("project_id").eq("id", groupId).single();
+    if (groupError) throw groupError;
+    await assertProjectRole(app, request.user.id, group.project_id, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("code_groups")
+      .update(toSnake(body))
+      .eq("id", groupId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return toCamel(data);
+  });
+
   app.get("/codes", async (request) => {
     const projectId = uuidSchema.parse((request.query as { projectId?: string }).projectId);
     await assertProjectRole(app, request.user.id, projectId);
@@ -140,6 +182,7 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch("/codes/:id", async (request) => {
     const codeId = uuidSchema.parse((request.params as { id: string }).id);
+    const body = updateCodeSchema.parse(request.body);
     const { data: code, error: codeError } = await app.supabase
       .from("codes")
       .select("project_id")
@@ -149,7 +192,7 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     await assertProjectRole(app, request.user.id, code.project_id, ["owner", "editor"]);
     const { data, error } = await app.supabase
       .from("codes")
-      .update(toSnake(request.body as Record<string, unknown>))
+      .update(toSnake(body))
       .eq("id", codeId)
       .select("*")
       .single();
