@@ -254,6 +254,14 @@ export const clusterCanvasRequestSchema = z.object({
   nodes: z.array(z.object({ id: z.string(), label: z.string(), text: z.string().optional() }))
 });
 
+export const updateAiSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+  apiBase: z.string().url(),
+  apiKey: z.string().optional(),
+  model: z.string().min(1)
+});
+export type UpdateAiSettings = z.infer<typeof updateAiSettingsSchema>;
+
 export const textImproveResponseSchema = z.object({
   provider: z.string(),
   degraded: z.boolean(),
@@ -273,7 +281,10 @@ export type AiStatus = {
   enabled: boolean;
   provider: string;
   model: string | null;
+  apiBase: string;
   configured: boolean;
+  apiKeyConfigured: boolean;
+  source: "env" | "runtime";
 };
 
 export type ApiError = {

@@ -3,19 +3,45 @@ import {
   clusterCanvasRequestSchema,
   extractKeywordsRequestSchema,
   recommendCodesRequestSchema,
-  textImproveRequestSchema
+  textImproveRequestSchema,
+  updateAiSettingsSchema
 } from "@intellisight/shared";
-import { env } from "../config/env.js";
 import { clusterCanvas, extractKeywords, improveText, recommendCodes, saveAiSuggestion } from "../services/ai.js";
+import { getAiConfig, updateAiConfig } from "../services/aiConfig.js";
 import { assertProjectRole } from "../services/projects.js";
 
 export const aiRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/ai/status", async () => ({
-    enabled: env.AI_ENABLED,
-    provider: "openai-compatible",
-    model: env.AI_ENABLED && env.AI_API_KEY ? env.AI_MODEL : null,
-    configured: Boolean(env.AI_ENABLED && env.AI_API_KEY)
-  }));
+  app.get("/ai/status", async () => {
+    const config = getAiConfig();
+    return {
+      enabled: config.enabled,
+      provider: "openai-compatible",
+      model: config.enabled && config.apiKey ? config.model : null,
+      apiBase: config.apiBase,
+      configured: Boolean(config.enabled && config.apiKey),
+      apiKeyConfigured: Boolean(config.apiKey),
+      source: config.source
+    };
+  });
+
+  app.put("/ai/settings", async (request) => {
+    const body = updateAiSettingsSchema.parse(request.body);
+    const config = updateAiConfig({
+      enabled: body.enabled,
+      apiBase: body.apiBase,
+      apiKey: body.apiKey,
+      model: body.model
+    });
+    return {
+      enabled: config.enabled,
+      provider: "openai-compatible",
+      model: config.enabled && config.apiKey ? config.model : null,
+      apiBase: config.apiBase,
+      configured: Boolean(config.enabled && config.apiKey),
+      apiKeyConfigured: Boolean(config.apiKey),
+      source: config.source
+    };
+  });
 
   app.post("/ai/codes/recommend", async (request) => {
     const body = recommendCodesRequestSchema.parse(request.body);
@@ -26,7 +52,7 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       userId: request.user.id,
       feature: "codes.recommend",
       provider: result.provider,
-      model: result.degraded ? null : env.AI_MODEL,
+      model: result.degraded ? null : getAiConfig().model,
       input: body,
       result
     });
@@ -58,7 +84,7 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       userId: request.user.id,
       feature: `text.${body.mode}`,
       provider: result.provider,
-      model: result.degraded ? null : env.AI_MODEL,
+      model: result.degraded ? null : getAiConfig().model,
       input: body,
       result
     });
@@ -74,7 +100,7 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
       userId: request.user.id,
       feature: "canvas.cluster",
       provider: result.provider,
-      model: result.degraded ? null : env.AI_MODEL,
+      model: result.degraded ? null : getAiConfig().model,
       input: body,
       result
     });

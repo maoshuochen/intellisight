@@ -8,7 +8,7 @@ import {
   type RecommendCodesResponse,
   type TextImproveResponse
 } from "@intellisight/shared";
-import { env } from "../config/env.js";
+import { canUseAiModel, getAiConfig } from "./aiConfig.js";
 
 type CandidateCode = { id: string; name: string };
 
@@ -34,14 +34,15 @@ export function hashInput(input: unknown) {
 }
 
 async function callJsonModel<T>(system: string, input: unknown): Promise<T> {
-  const response = await fetch(`${env.AI_API_BASE.replace(/\/$/, "")}/chat/completions`, {
+  const config = getAiConfig();
+  const response = await fetch(`${config.apiBase.replace(/\/$/, "")}/chat/completions`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      authorization: `Bearer ${env.AI_API_KEY}`
+      authorization: `Bearer ${config.apiKey}`
     },
     body: JSON.stringify({
-      model: env.AI_MODEL,
+      model: config.model,
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
@@ -58,12 +59,8 @@ async function callJsonModel<T>(system: string, input: unknown): Promise<T> {
   return JSON.parse(content) as T;
 }
 
-function canUseModel() {
-  return Boolean(env.AI_ENABLED && env.AI_API_KEY);
-}
-
 export async function recommendCodes(text: string, candidateCodes: CandidateCode[]): Promise<RecommendCodesResponse> {
-  if (!canUseModel() || candidateCodes.length === 0) {
+  if (!canUseAiModel() || candidateCodes.length === 0) {
     return fallbackRecommend(text, candidateCodes);
   }
 
@@ -112,7 +109,7 @@ export function extractKeywords(text: string) {
 }
 
 export async function improveText(text: string, mode: "correct" | "simplify"): Promise<TextImproveResponse> {
-  if (!canUseModel()) {
+  if (!canUseAiModel()) {
     return textImproveResponseSchema.parse({
       provider: "rules",
       degraded: true,
@@ -145,7 +142,7 @@ export async function improveText(text: string, mode: "correct" | "simplify"): P
 }
 
 export async function clusterCanvas(nodes: Array<{ id: string; label: string; text?: string }>): Promise<CanvasClusterResponse> {
-  if (!canUseModel()) {
+  if (!canUseAiModel()) {
     return fallbackCluster(nodes);
   }
 
