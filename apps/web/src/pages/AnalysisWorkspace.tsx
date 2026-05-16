@@ -25,7 +25,7 @@ import {
   Tooltip,
   Typography
 } from "@arco-design/web-react";
-import { IconMindMapping, IconSave } from "@arco-design/web-react/icon";
+import { IconDelete, IconMindMapping, IconSave } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type {
@@ -59,6 +59,9 @@ export function AnalysisWorkspace() {
   const [selectedText, setSelectedText] = useState("");
   const [selectionOffsets, setSelectionOffsets] = useState({ start: 0, end: 0 });
   const [selectedCodeIds, setSelectedCodeIds] = useState<string[]>([]);
+  const [selectionBox, setSelectionBox] = useState<{ top: number; left: number } | null>(null);
+  const [codeSearch, setCodeSearch] = useState("");
+  const [comment, setComment] = useState("");
   const [query, setQuery] = useState("");
   const [highlightQuery, setHighlightQuery] = useState("");
   const [speaker, setSpeaker] = useState<string | undefined>();
@@ -119,6 +122,10 @@ export function AnalysisWorkspace() {
     for (const code of codes.data ?? []) map.get(code.codeGroupId)?.push(code);
     return map;
   }, [codeGroups.data, codes.data]);
+  const filteredCodes = useMemo(() => {
+    const needle = codeSearch.trim().toLowerCase();
+    return (codes.data ?? []).filter((code) => !needle || code.name.toLowerCase().includes(needle)).slice(0, 8);
+  }, [codeSearch, codes.data]);
   const filteredParagraphs = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return (paragraphs.data ?? []).filter((paragraph) => {
@@ -171,6 +178,7 @@ export function AnalysisWorkspace() {
         text: selectedText,
         startOffset: selectionOffsets.start,
         endOffset: selectionOffsets.end,
+        comment: comment || undefined,
         codeIds: selectedCodeIds
       }),
     onSuccess: (annotation) => {
@@ -178,6 +186,9 @@ export function AnalysisWorkspace() {
       addAnnotationNode(annotation);
       setSelectedText("");
       setSelectedCodeIds([]);
+      setSelectionBox(null);
+      setCodeSearch("");
+      setComment("");
       void queryClient.invalidateQueries({ queryKey: ["annotations", projectId] });
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
@@ -201,13 +212,18 @@ export function AnalysisWorkspace() {
   });
 
   function captureSelection(paragraph: Paragraph) {
-    const text = window.getSelection()?.toString().trim() ?? "";
+    const selection = window.getSelection();
+    const text = selection?.toString().trim() ?? "";
     if (!text) return;
     const start = paragraph.text.indexOf(text);
+    const rect = selection?.rangeCount ? selection.getRangeAt(0).getBoundingClientRect() : null;
     setSelectedParagraphId(paragraph.id);
     setSelectedText(text);
     setSelectionOffsets({ start: Math.max(0, start), end: Math.max(0, start) + text.length });
     setSelectedCodeIds([]);
+    setSelectionBox(rect ? { top: rect.bottom + 10, left: Math.min(rect.left + rect.width / 2, window.innerWidth - 280) } : null);
+    setCodeSearch("");
+    setComment("");
     recommendations.mutate(text);
     keywords.mutate(text);
   }
@@ -217,8 +233,34 @@ export function AnalysisWorkspace() {
     setSelectedText(annotation.text);
     setSelectionOffsets({ start: annotation.startOffset, end: annotation.endOffset });
     setSelectedCodeIds(annotation.codeIds);
+    setSelectionBox(null);
+    setComment(annotation.comment ?? "");
     recommendations.mutate(annotation.text);
     keywords.mutate(annotation.text);
+  }
+
+  function clearSelection() {
+    setSelectedText("");
+    setSelectedParagraphId(null);
+    setSelectedCodeIds([]);
+    setSelectionBox(null);
+    setCodeSearch("");
+    setComment("");
+  }
+
+  function toggleCode(codeId: string) {
+    setSelectedCodeIds((ids) => (ids.includes(codeId) ? ids.filter((id) => id !== codeId) : [...ids, codeId]));
+  }
+
+  function renderParagraphText(paragraph: Paragraph) {
+    if (paragraph.id !== selectedParagraphId || !selectedText || selectionOffsets.end <= selectionOffsets.start) return paragraph.text;
+    return (
+      <>
+        {paragraph.text.slice(0, selectionOffsets.start)}
+        <span className="active-text-highlight">{paragraph.text.slice(selectionOffsets.start, selectionOffsets.end)}</span>
+        {paragraph.text.slice(selectionOffsets.end)}
+      </>
+    );
   }
 
   function addAnnotationNode(annotation: Pick<Annotation, "id" | "text" | "codeIds">) {
@@ -285,7 +327,7 @@ export function AnalysisWorkspace() {
                     <strong>{paragraph.speaker ?? "Speaker"}</strong>
                     <span>{paragraph.startTime}</span>
                   </div>
-                  <p>{paragraph.text}</p>
+                  <p>{renderParagraphText(paragraph)}</p>
                 </article>
               ))}
               {!filteredParagraphs.length && <Empty description="No transcript paragraphs match the current filters." />}
@@ -452,6 +494,68 @@ export function AnalysisWorkspace() {
           ))}
         </Space>
       </aside>
+
+      {selectedText && selectionBox && (
+        <div className="coding-popover" style={{ top: selectionBox.top, left: selectionBox.left }}>
+          <Input.Search
+            autoFocus
+            placeholder="Type to search codes"
+            value={codeSearch}
+            onChange={setCodeSearch}
+            onPressEnter={() => codeSearch.trim() && createCode.mutate(codeSearch.trim())}
+          />
+          <Typography.Text type="secondary">Selected</Typography.Text>
+          <Space wrap>
+            {selectedCodeIds.length ? (
+              selectedCodeIds.map((id) => (
+                <Tag key={id} closable color={codeMap.get(id)?.codeGroupId ? codeGroups.data?.find((group) => group.id === codeMap.get(id)?.codeGroupId)?.color : "arcoblue"} onClose={() => toggleCode(id)}>
+                  {codeMap.get(id)?.name ?? id}
+                </Tag>
+              ))
+            ) : (
+              <Typography.Text type="secondary">No codes selected</Typography.Text>
+            )}
+          </Space>
+          <Typography.Text type="secondary">Recommendation</Typography.Text>
+          <Space wrap>
+            {recommendations.isPending && <Tag>Loading...</Tag>}
+            {(recommendations.data?.recommendations ?? []).map((item) => (
+              <Tooltip key={item.id ?? item.label} content={`${Math.round(item.score * 100)}% · ${item.reason}`}>
+                <Tag color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "purple"} onClick={() => item.id && toggleCode(item.id)}>
+                  {item.label}
+                </Tag>
+              </Tooltip>
+            ))}
+            {filteredCodes.map((code) => (
+              <Tag key={code.id} color={selectedCodeIds.includes(code.id) ? "arcoblue" : "gray"} onClick={() => toggleCode(code.id)}>
+                {code.name}
+              </Tag>
+            ))}
+          </Space>
+          <div className="coding-popover-create">
+            {(keywords.data?.keywords ?? []).slice(0, 2).map((keyword) => (
+              <Button key={keyword} type="text" long onClick={() => createCode.mutate(keyword)}>
+                Create {keyword}
+              </Button>
+            ))}
+            {codeSearch.trim() && !filteredCodes.some((code) => code.name.toLowerCase() === codeSearch.trim().toLowerCase()) && (
+              <Button type="text" long onClick={() => createCode.mutate(codeSearch.trim())}>
+                Create {codeSearch.trim()}
+              </Button>
+            )}
+          </div>
+          <Input placeholder="Add comment" value={comment} onChange={setComment} />
+          <div className="coding-popover-actions">
+            <Button icon={<IconDelete />} onClick={clearSelection} />
+            <Space>
+              <Button onClick={clearSelection}>Cancel</Button>
+              <Button type="primary" disabled={!selectedParagraphId || !selectedCodeIds.length} loading={saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
+                Save
+              </Button>
+            </Space>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

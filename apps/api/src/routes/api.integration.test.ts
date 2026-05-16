@@ -4,13 +4,13 @@ import type { Database } from "@intellisight/shared";
 import { buildApp } from "../app.js";
 import { env } from "../config/env.js";
 
-const hasSupabase = Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
+const runSupabaseIntegration = process.env.RUN_SUPABASE_INTEGRATION === "true" && Boolean(env.SUPABASE_URL && env.SUPABASE_SERVICE_ROLE_KEY);
 type InjectJsonResponse = {
   statusCode: number;
   json: () => any;
 };
 
-describe.skipIf(!hasSupabase)("API integration", () => {
+describe.skipIf(!runSupabaseIntegration)("API integration", () => {
   const admin = createClient<Database>(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { autoRefreshToken: false, persistSession: false }
   });

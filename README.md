@@ -82,7 +82,13 @@ npm audit --audit-level=moderate
 The API test suite includes:
 
 - deterministic AI fallback unit tests
-- a Supabase-backed integration test that creates a temporary user/project, calls the AI/report APIs, verifies `ai_suggestions`, and cleans up
+- an opt-in Supabase-backed integration test that creates a temporary user/project, calls the AI/report APIs, verifies `ai_suggestions`, and cleans up
+
+Run the networked Supabase integration test explicitly:
+
+```sh
+RUN_SUPABASE_INTEGRATION=true npm run test
+```
 
 ## Database Types
 
