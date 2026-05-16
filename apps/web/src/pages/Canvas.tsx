@@ -10,11 +10,11 @@ import {
   type Edge,
   type Node
 } from "@xyflow/react";
-import { Button, Card, Empty, List, Message, Select, Space, Typography } from "@arco-design/web-react";
-import { IconPlus, IconSave } from "@arco-design/web-react/icon";
+import { Alert, Button, Card, Empty, List, Message, Select, Space, Tag, Typography } from "@arco-design/web-react";
+import { IconMindMapping, IconPlus, IconSave } from "@arco-design/web-react/icon";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import type { Annotation, CanvasDocument } from "@intellisight/shared";
+import type { Annotation, CanvasClusterResponse, CanvasDocument } from "@intellisight/shared";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -60,6 +60,15 @@ export function Canvas() {
     onError: (error) => Message.error(error.message)
   });
 
+  const clusterCanvas = useMutation({
+    mutationFn: () =>
+      api.post<CanvasClusterResponse>("/ai/canvas/cluster", {
+        projectId,
+        nodes: nodes.map((node) => ({ id: node.id, label: String(node.data?.label ?? ""), text: String(node.data?.label ?? "") }))
+      }),
+    onError: (error) => Message.error(error.message)
+  });
+
   function addAnnotationNode(annotation: Annotation) {
     setNodes((current) => [
       ...current,
@@ -68,6 +77,19 @@ export function Canvas() {
         position: { x: 120 + current.length * 32, y: 120 + current.length * 24 },
         data: { label: annotation.text }
       }
+    ]);
+  }
+
+  function addThemeNodes() {
+    if (!clusterCanvas.data) return;
+    const themes = Object.entries(clusterCanvas.data.groups);
+    setNodes((current) => [
+      ...current,
+      ...themes.map(([theme, items], index) => ({
+        id: `theme-${theme}-${Date.now()}-${index}`,
+        position: { x: 520, y: 80 + index * 120 },
+        data: { label: `${theme} (${items.length})` }
+      }))
     ]);
   }
 
@@ -90,6 +112,27 @@ export function Canvas() {
           <Button icon={<IconSave />} long disabled={!activeCanvas} loading={saveCanvas.isPending} onClick={() => saveCanvas.mutate()}>
             Save canvas
           </Button>
+          <Button icon={<IconMindMapping />} long disabled={!nodes.length} loading={clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
+            Cluster nodes
+          </Button>
+          {clusterCanvas.data && (
+            <Alert
+              type={clusterCanvas.data.degraded ? "warning" : "info"}
+              content={
+                <Space direction="vertical" className="full-width-space">
+                  <Typography.Text>{clusterCanvas.data.degraded ? "Fallback clustering" : "AI clustering"} produced {Object.keys(clusterCanvas.data.groups).length} themes.</Typography.Text>
+                  <Space wrap>
+                    {Object.entries(clusterCanvas.data.groups).map(([theme, items]) => (
+                      <Tag key={theme}>{theme}: {items.length}</Tag>
+                    ))}
+                  </Space>
+                  <Button size="mini" type="primary" onClick={addThemeNodes}>
+                    Add theme nodes
+                  </Button>
+                </Space>
+              }
+            />
+          )}
           <Typography.Text type="secondary">Click highlights below to add them as nodes.</Typography.Text>
           <List
             dataSource={annotations.data ?? []}

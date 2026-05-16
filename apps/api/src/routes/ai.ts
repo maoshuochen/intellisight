@@ -6,10 +6,17 @@ import {
   textImproveRequestSchema
 } from "@intellisight/shared";
 import { env } from "../config/env.js";
-import { extractKeywords, recommendCodes, saveAiSuggestion } from "../services/ai.js";
+import { clusterCanvas, extractKeywords, improveText, recommendCodes, saveAiSuggestion } from "../services/ai.js";
 import { assertProjectRole } from "../services/projects.js";
 
 export const aiRoutes: FastifyPluginAsync = async (app) => {
+  app.get("/ai/status", async () => ({
+    enabled: env.AI_ENABLED,
+    provider: "openai-compatible",
+    model: env.AI_ENABLED && env.AI_API_KEY ? env.AI_MODEL : null,
+    configured: Boolean(env.AI_ENABLED && env.AI_API_KEY)
+  }));
+
   app.post("/ai/codes/recommend", async (request) => {
     const body = recommendCodesRequestSchema.parse(request.body);
     await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
@@ -45,23 +52,32 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
   app.post("/ai/text/improve", async (request) => {
     const body = textImproveRequestSchema.parse(request.body);
     await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
-    const result = {
-      provider: "rules",
-      degraded: true,
-      text: body.text.trim().replace(/\s+/g, " ")
-    };
+    const result = await improveText(body.text, body.mode);
+    await saveAiSuggestion(app, {
+      projectId: body.projectId,
+      userId: request.user.id,
+      feature: `text.${body.mode}`,
+      provider: result.provider,
+      model: result.degraded ? null : env.AI_MODEL,
+      input: body,
+      result
+    });
     return result;
   });
 
   app.post("/ai/canvas/cluster", async (request) => {
     const body = clusterCanvasRequestSchema.parse(request.body);
     await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
-    const groups = body.nodes.reduce<Record<string, Array<{ id: string; label: string }>>>((acc, node) => {
-      const key = node.label.slice(0, 1).toUpperCase() || "Other";
-      acc[key] = acc[key] ?? [];
-      acc[key].push({ id: node.id, label: node.label });
-      return acc;
-    }, {});
-    return { provider: "rules", degraded: true, groups };
+    const result = await clusterCanvas(body.nodes);
+    await saveAiSuggestion(app, {
+      projectId: body.projectId,
+      userId: request.user.id,
+      feature: "canvas.cluster",
+      provider: result.provider,
+      model: result.degraded ? null : env.AI_MODEL,
+      input: body,
+      result
+    });
+    return result;
   });
 };

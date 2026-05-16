@@ -237,6 +237,26 @@ export const clusterCanvasRequestSchema = z.object({
   nodes: z.array(z.object({ id: z.string(), label: z.string(), text: z.string().optional() }))
 });
 
+export type TextImproveResponse = {
+  provider: string;
+  degraded: boolean;
+  text: string;
+  reason: string;
+};
+
+export type CanvasClusterResponse = {
+  provider: string;
+  degraded: boolean;
+  groups: Record<string, Array<{ id: string; label: string }>>;
+};
+
+export type AiStatus = {
+  enabled: boolean;
+  provider: string;
+  model: string | null;
+  configured: boolean;
+};
+
 export type ApiError = {
   error: {
     code: string;

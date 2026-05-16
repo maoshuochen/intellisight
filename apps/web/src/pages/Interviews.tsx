@@ -1,7 +1,7 @@
-import { Alert, Button, Card, Empty, Input, List, Message, Select, Space, Tag, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Empty, Input, List, Message, Select, Space, Tag, Tooltip, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import type { Code, CodeGroup, Interview, Paragraph, RecommendCodesResponse } from "@intellisight/shared";
+import type { Code, CodeGroup, Interview, Paragraph, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -48,6 +48,10 @@ export function Interviews() {
   });
   const keywords = useMutation({
     mutationFn: (text: string) => api.post<{ keywords: string[]; degraded: boolean; provider: string }>("/ai/keywords/extract", { projectId, text })
+  });
+  const improveText = useMutation({
+    mutationFn: (mode: "correct" | "simplify") => api.post<TextImproveResponse>("/ai/text/improve", { projectId, text: selectedText, mode }),
+    onError: (error) => Message.error(error.message)
   });
   const createCode = useMutation({
     mutationFn: (name: string) =>
@@ -210,6 +214,28 @@ export function Interviews() {
           <Space direction="vertical" className="full-width-space">
             <Typography.Paragraph ellipsis={{ rows: 4, expandable: true }}>{selectedText}</Typography.Paragraph>
             {recommendations.data?.degraded && <Alert type="warning" content="AI provider is unavailable. Showing rule-based fallback recommendations." />}
+            <Space>
+              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("correct")}>
+                Correct text
+              </Button>
+              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
+                Simplify
+              </Button>
+            </Space>
+            {improveText.data && (
+              <Alert
+                type={improveText.data.degraded ? "warning" : "info"}
+                content={
+                  <Space direction="vertical" className="full-width-space">
+                    <Typography.Text>{improveText.data.text}</Typography.Text>
+                    <Typography.Text type="secondary">{improveText.data.reason}</Typography.Text>
+                    <Button size="mini" type="primary" onClick={() => setSelectedText(improveText.data.text)}>
+                      Use this text
+                    </Button>
+                  </Space>
+                }
+              />
+            )}
             <Typography.Text type="secondary">Selected codes</Typography.Text>
             <Space wrap>
               {selectedCodeIds.map((id) => (
@@ -222,13 +248,14 @@ export function Interviews() {
             <Space wrap>
               {recommendations.isPending && <Tag>Loading recommendations...</Tag>}
               {(recommendations.data?.recommendations ?? []).map((item) => (
-                <Tag
-                  key={item.id ?? item.label}
-                  color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "gray"}
-                  onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}
-                >
-                  {item.label}
-                </Tag>
+                <Tooltip key={item.id ?? item.label} content={`${Math.round(item.score * 100)}% · ${item.reason}`}>
+                  <Tag
+                    color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "gray"}
+                    onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}
+                  >
+                    {item.label}
+                  </Tag>
+                </Tooltip>
               ))}
             </Space>
             <Typography.Text type="secondary">New code candidates</Typography.Text>

@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { RecommendCodesResponse } from "@intellisight/shared";
+import type { CanvasClusterResponse, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
 import { env } from "../config/env.js";
 
 type CandidateCode = { id: string; name: string };
@@ -26,41 +26,45 @@ export function hashInput(input: unknown) {
   return crypto.createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
 
+async function callJsonModel<T>(system: string, input: unknown): Promise<T> {
+  const response = await fetch(`${env.AI_API_BASE.replace(/\/$/, "")}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${env.AI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: env.AI_MODEL,
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: JSON.stringify(input) }
+      ]
+    })
+  });
+
+  if (!response.ok) throw new Error(`AI request failed: ${response.status}`);
+  const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = payload.choices?.[0]?.message?.content;
+  if (!content) throw new Error("AI response had no content");
+  return JSON.parse(content) as T;
+}
+
+function canUseModel() {
+  return Boolean(env.AI_ENABLED && env.AI_API_KEY);
+}
+
 export async function recommendCodes(text: string, candidateCodes: CandidateCode[]): Promise<RecommendCodesResponse> {
-  if (!env.AI_ENABLED || !env.AI_API_KEY || candidateCodes.length === 0) {
+  if (!canUseModel() || candidateCodes.length === 0) {
     return fallbackRecommend(text, candidateCodes);
   }
 
   try {
-    const response = await fetch(`${env.AI_API_BASE.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${env.AI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: env.AI_MODEL,
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are assisting a user researcher. Rank candidate qualitative codes for a transcript quote. Return JSON with recommendations: [{id,label,score,reason}]. Scores must be 0..1."
-          },
-          {
-            role: "user",
-            content: JSON.stringify({ text, candidateCodes })
-          }
-        ]
-      })
-    });
-
-    if (!response.ok) throw new Error(`AI request failed: ${response.status}`);
-    const payload = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = payload.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI response had no content");
-    const parsed = JSON.parse(content) as Pick<RecommendCodesResponse, "recommendations">;
+    const parsed = await callJsonModel<Pick<RecommendCodesResponse, "recommendations">>(
+      "You are assisting a user researcher. Rank candidate qualitative codes for a transcript quote. Return JSON with recommendations: [{id,label,score,reason}]. Scores must be 0..1. Reasons must be concise and explain why the code may fit.",
+      { text, candidateCodes }
+    );
     return {
       provider: "openai-compatible",
       degraded: false,
@@ -98,6 +102,67 @@ export function extractKeywords(text: string) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([keyword]) => keyword);
+}
+
+export async function improveText(text: string, mode: "correct" | "simplify"): Promise<TextImproveResponse> {
+  if (!canUseModel()) {
+    return {
+      provider: "rules",
+      degraded: true,
+      text: text.trim().replace(/\s+/g, " "),
+      reason: "Whitespace cleanup fallback; configure AI_API_KEY for semantic correction."
+    };
+  }
+
+  try {
+    const parsed = await callJsonModel<{ text: string; reason?: string }>(
+      mode === "simplify"
+        ? "You help user researchers clean transcript quotes. Simplify the text while preserving meaning and speaker intent. Return JSON: {text, reason}."
+        : "You help user researchers clean transcript quotes. Correct obvious grammar and transcription issues while preserving meaning and speaker intent. Return JSON: {text, reason}.",
+      { text }
+    );
+    return {
+      provider: "openai-compatible",
+      degraded: false,
+      text: parsed.text,
+      reason: parsed.reason ?? "AI generated transcript improvement candidate."
+    };
+  } catch {
+    return {
+      provider: "rules",
+      degraded: true,
+      text: text.trim().replace(/\s+/g, " "),
+      reason: "AI request failed; whitespace cleanup fallback was used."
+    };
+  }
+}
+
+export async function clusterCanvas(nodes: Array<{ id: string; label: string; text?: string }>): Promise<CanvasClusterResponse> {
+  if (!canUseModel()) {
+    return fallbackCluster(nodes);
+  }
+
+  try {
+    const parsed = await callJsonModel<Pick<CanvasClusterResponse, "groups">>(
+      "You help user researchers cluster qualitative highlights into themes. Return JSON: {groups}, where groups is an object mapping concise theme names to arrays of {id,label}. Use only node ids from input.",
+      { nodes }
+    );
+    return { provider: "openai-compatible", degraded: false, groups: parsed.groups };
+  } catch {
+    return fallbackCluster(nodes);
+  }
+}
+
+export function fallbackCluster(nodes: Array<{ id: string; label: string }>): CanvasClusterResponse {
+  const groups = nodes.reduce<Record<string, Array<{ id: string; label: string }>>>((acc, node) => {
+    const tokens = tokenize(node.label).filter((token) => token.length > 3);
+    const firstToken = tokens[0];
+    const key = firstToken ? firstToken.charAt(0).toUpperCase() + firstToken.slice(1) : "Other";
+    acc[key] = acc[key] ?? [];
+    acc[key].push({ id: node.id, label: node.label });
+    return acc;
+  }, {});
+  return { provider: "rules", degraded: true, groups };
 }
 
 export async function saveAiSuggestion(app: FastifyInstance, params: {
