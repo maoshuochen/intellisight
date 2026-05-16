@@ -1,23 +1,10 @@
-# Dependencies
 node_modules/
-frontend/node_modules/
-
-# Python
-__pycache__/
-*.py[cod]
-.venv/
-backend/.venv/
-
-# Build output
 dist/
-frontend/dist/
-
-# Local environment files
 .env
-.env.*
-*.local
-
-# OS/editor noise
+.env.local
 .DS_Store
-.idea/
-*.swp
+*.log
+apps/api/.env
+apps/web/.env
+coverage/
+.vite/

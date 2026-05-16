@@ -1,12 +1,26 @@
 {
   "name": "intellisight",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "frontend:install": "npm --prefix frontend install",
-    "frontend:dev": "npm --prefix frontend run dev",
-    "frontend:build": "npm --prefix frontend run build",
-    "backend:venv": "python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt",
-    "backend:dev": "cd backend && .venv/bin/python app.py"
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "build": "npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
+    "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "test": "npm run test -w apps/api",
+    "lint": "npm run lint -w apps/web",
+    "migrate:sqlite": "tsx scripts/migrate-sqlite-to-supabase.ts",
+    "legacy:frontend:dev": "npm --prefix frontend run dev",
+    "legacy:backend:dev": "cd backend && .venv/bin/python app.py"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.8.1",
+    "concurrently": "^9.1.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
