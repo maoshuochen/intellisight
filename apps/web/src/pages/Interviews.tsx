@@ -166,7 +166,7 @@ export function Interviews() {
           <List
             dataSource={interviews.data ?? []}
             render={(item) => (
-              <List.Item className={item.id === activeInterviewId ? "active-row" : ""} onClick={() => setSelectedInterviewId(item.id)}>
+              <List.Item key={item.id} className={item.id === activeInterviewId ? "active-row" : ""} onClick={() => setSelectedInterviewId(item.id)}>
                 <List.Item.Meta title={item.name} description={item.participantName ?? item.sample ?? "Transcript"} />
               </List.Item>
             )}

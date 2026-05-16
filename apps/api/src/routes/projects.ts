@@ -10,7 +10,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       .eq("user_id", request.user.id);
 
     if (error) throw error;
-    return toCamel(data.map((row) => row.projects).filter(Boolean));
+    return toCamel((data as Array<{ projects?: unknown }>).map((row) => row.projects).filter(Boolean));
   });
 
   app.post("/projects", async (request, reply) => {

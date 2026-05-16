@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { createCanvasSchema, createOutlineSchema, updateCanvasSchema, updateOutlineQuestionsSchema, uuidSchema } from "@intellisight/shared";
+import { createCanvasSchema, createOutlineSchema, createReportSchema, updateCanvasSchema, updateOutlineQuestionsSchema, uuidSchema } from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
 import { toCamel } from "../utils/case.js";
 
@@ -13,8 +13,9 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .eq("project_id", projectId)
       .order("updated_at", { ascending: false });
     if (error) throw error;
+    const outlines = data as Array<Record<string, any> & { outline_questions?: Array<Record<string, any>> }>;
     return toCamel(
-      data.map((outline) => ({
+      outlines.map((outline) => ({
         ...outline,
         questions: [...(outline.outline_questions ?? [])].sort((a, b) => a.sort_order - b.sort_order)
       }))
@@ -75,7 +76,8 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .eq("id", outlineId)
       .single();
     if (error) throw error;
-    return toCamel({ ...data, questions: [...(data.outline_questions ?? [])].sort((a, b) => a.sort_order - b.sort_order) });
+    const outlineWithQuestions = data as Record<string, any> & { outline_questions?: Array<Record<string, any>> };
+    return toCamel({ ...outlineWithQuestions, questions: [...(outlineWithQuestions.outline_questions ?? [])].sort((a, b) => a.sort_order - b.sort_order) });
   });
 
   app.get("/canvases", async (request) => {
@@ -124,14 +126,38 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .from("canvases")
       .update({
         name: body.name,
-        nodes: body.nodes,
-        edges: body.edges,
-        viewport: body.viewport
+        nodes: body.nodes as any,
+        edges: body.edges as any,
+        viewport: body.viewport as any
       })
       .eq("id", id)
       .select("*")
       .single();
     if (error) throw error;
     return toCamel(data);
+  });
+
+  app.get("/reports", async (request) => {
+    const projectId = uuidSchema.parse((request.query as { projectId?: string }).projectId);
+    await assertProjectRole(app, request.user.id, projectId);
+    const { data, error } = await app.supabase
+      .from("reports")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("updated_at", { ascending: false });
+    if (error) throw error;
+    return toCamel(data);
+  });
+
+  app.post("/reports", async (request, reply) => {
+    const body = createReportSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("reports")
+      .insert({ project_id: body.projectId, title: body.title, body: body.body })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return reply.code(201).send(toCamel(data));
   });
 };

@@ -1,4 +1,5 @@
 import { z } from "zod";
+export type { Database, Json } from "./database.types.js";
 
 export const uuidSchema = z.string().uuid();
 
@@ -115,6 +116,16 @@ export const aiSuggestionSchema = z.object({
 });
 export type AiSuggestion = z.infer<typeof aiSuggestionSchema>;
 
+export const reportSchema = z.object({
+  id: uuidSchema,
+  projectId: uuidSchema,
+  title: z.string(),
+  body: z.string(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+export type Report = z.infer<typeof reportSchema>;
+
 export const createProjectSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional()
@@ -201,6 +212,12 @@ export const updateCanvasSchema = z.object({
   viewport: z.record(z.unknown()).nullable().optional()
 });
 
+export const createReportSchema = z.object({
+  projectId: uuidSchema,
+  title: z.string().min(1),
+  body: z.string().default("")
+});
+
 export const recommendCodesRequestSchema = z.object({
   projectId: uuidSchema,
   text: z.string().min(1),
@@ -237,18 +254,20 @@ export const clusterCanvasRequestSchema = z.object({
   nodes: z.array(z.object({ id: z.string(), label: z.string(), text: z.string().optional() }))
 });
 
-export type TextImproveResponse = {
-  provider: string;
-  degraded: boolean;
-  text: string;
-  reason: string;
-};
+export const textImproveResponseSchema = z.object({
+  provider: z.string(),
+  degraded: z.boolean(),
+  text: z.string(),
+  reason: z.string()
+});
+export type TextImproveResponse = z.infer<typeof textImproveResponseSchema>;
 
-export type CanvasClusterResponse = {
-  provider: string;
-  degraded: boolean;
-  groups: Record<string, Array<{ id: string; label: string }>>;
-};
+export const canvasClusterResponseSchema = z.object({
+  provider: z.string(),
+  degraded: z.boolean(),
+  groups: z.record(z.array(z.object({ id: z.string(), label: z.string() })))
+});
+export type CanvasClusterResponse = z.infer<typeof canvasClusterResponseSchema>;
 
 export type AiStatus = {
   enabled: boolean;

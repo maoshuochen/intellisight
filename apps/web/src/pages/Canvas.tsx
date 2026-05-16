@@ -137,7 +137,7 @@ export function Canvas() {
           <List
             dataSource={annotations.data ?? []}
             render={(item) => (
-              <List.Item className="clickable-row" onClick={() => addAnnotationNode(item)}>
+              <List.Item key={item.id} className="clickable-row" onClick={() => addAnnotationNode(item)}>
                 <List.Item.Meta title={item.text} description={`${item.codeIds.length} codes`} />
               </List.Item>
             )}

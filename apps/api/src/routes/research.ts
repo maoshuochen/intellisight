@@ -92,7 +92,7 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
 
     const { data, error } = await app.supabase
       .from("paragraphs")
-      .update(body)
+      .update(body as any)
       .eq("id", paragraphId)
       .select("*")
       .single();
@@ -138,7 +138,7 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     await assertProjectRole(app, request.user.id, group.project_id, ["owner", "editor"]);
     const { data, error } = await app.supabase
       .from("code_groups")
-      .update(toSnake(body))
+      .update(toSnake(body) as any)
       .eq("id", groupId)
       .select("*")
       .single();
@@ -155,8 +155,9 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
       .eq("project_id", projectId)
       .order("created_at");
     if (error) throw error;
+    const rows = data as Array<Record<string, any> & { annotation_codes?: Array<{ count?: number }> }>;
     return toCamel(
-      data.map((code) => ({
+      rows.map((code) => ({
         ...code,
         usage: code.annotation_codes?.[0]?.count ?? 0
       }))
@@ -192,7 +193,7 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     await assertProjectRole(app, request.user.id, code.project_id, ["owner", "editor"]);
     const { data, error } = await app.supabase
       .from("codes")
-      .update(toSnake(body))
+      .update(toSnake(body) as any)
       .eq("id", codeId)
       .select("*")
       .single();
@@ -226,7 +227,8 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     if (query.paragraphId) builder = builder.eq("paragraph_id", uuidSchema.parse(query.paragraphId));
     const { data, error } = await builder;
     if (error) throw error;
-    return toCamel(data.map((annotation) => ({
+    const rows = data as Array<Record<string, any> & { annotation_codes?: Array<{ code_id: string }> }>;
+    return toCamel(rows.map((annotation) => ({
       ...annotation,
       code_ids: annotation.annotation_codes?.map((item: { code_id: string }) => item.code_id) ?? []
     })));

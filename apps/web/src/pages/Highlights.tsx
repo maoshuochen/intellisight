@@ -79,7 +79,7 @@ export function Highlights() {
           <List
             dataSource={filtered}
             render={(item) => (
-              <List.Item className="clickable-row" onClick={() => navigate("/interviews")}>
+              <List.Item key={item.id} className="clickable-row" onClick={() => navigate("/interviews")}>
                 <List.Item.Meta
                   title={item.text}
                   description={

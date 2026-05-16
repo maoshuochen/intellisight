@@ -1,6 +1,13 @@
 import crypto from "node:crypto";
 import type { FastifyInstance } from "fastify";
-import type { CanvasClusterResponse, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
+import {
+  canvasClusterResponseSchema,
+  recommendCodesResponseSchema,
+  textImproveResponseSchema,
+  type CanvasClusterResponse,
+  type RecommendCodesResponse,
+  type TextImproveResponse
+} from "@intellisight/shared";
 import { env } from "../config/env.js";
 
 type CandidateCode = { id: string; name: string };
@@ -65,18 +72,18 @@ export async function recommendCodes(text: string, candidateCodes: CandidateCode
       "You are assisting a user researcher. Rank candidate qualitative codes for a transcript quote. Return JSON with recommendations: [{id,label,score,reason}]. Scores must be 0..1. Reasons must be concise and explain why the code may fit.",
       { text, candidateCodes }
     );
-    return {
+    return recommendCodesResponseSchema.parse({
       provider: "openai-compatible",
       degraded: false,
       recommendations: parsed.recommendations.slice(0, 6)
-    };
+    });
   } catch {
     return fallbackRecommend(text, candidateCodes);
   }
 }
 
 export function fallbackRecommend(text: string, candidateCodes: CandidateCode[]): RecommendCodesResponse {
-  return {
+  return recommendCodesResponseSchema.parse({
     provider: "rules",
     degraded: true,
     recommendations: candidateCodes
@@ -88,7 +95,7 @@ export function fallbackRecommend(text: string, candidateCodes: CandidateCode[])
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 6)
-  };
+  });
 }
 
 export function extractKeywords(text: string) {
@@ -106,12 +113,12 @@ export function extractKeywords(text: string) {
 
 export async function improveText(text: string, mode: "correct" | "simplify"): Promise<TextImproveResponse> {
   if (!canUseModel()) {
-    return {
+    return textImproveResponseSchema.parse({
       provider: "rules",
       degraded: true,
       text: text.trim().replace(/\s+/g, " "),
       reason: "Whitespace cleanup fallback; configure AI_API_KEY for semantic correction."
-    };
+    });
   }
 
   try {
@@ -121,19 +128,19 @@ export async function improveText(text: string, mode: "correct" | "simplify"): P
         : "You help user researchers clean transcript quotes. Correct obvious grammar and transcription issues while preserving meaning and speaker intent. Return JSON: {text, reason}.",
       { text }
     );
-    return {
+    return textImproveResponseSchema.parse({
       provider: "openai-compatible",
       degraded: false,
       text: parsed.text,
       reason: parsed.reason ?? "AI generated transcript improvement candidate."
-    };
+    });
   } catch {
-    return {
+    return textImproveResponseSchema.parse({
       provider: "rules",
       degraded: true,
       text: text.trim().replace(/\s+/g, " "),
       reason: "AI request failed; whitespace cleanup fallback was used."
-    };
+    });
   }
 }
 
@@ -147,7 +154,7 @@ export async function clusterCanvas(nodes: Array<{ id: string; label: string; te
       "You help user researchers cluster qualitative highlights into themes. Return JSON: {groups}, where groups is an object mapping concise theme names to arrays of {id,label}. Use only node ids from input.",
       { nodes }
     );
-    return { provider: "openai-compatible", degraded: false, groups: parsed.groups };
+    return canvasClusterResponseSchema.parse({ provider: "openai-compatible", degraded: false, groups: parsed.groups });
   } catch {
     return fallbackCluster(nodes);
   }
@@ -162,7 +169,7 @@ export function fallbackCluster(nodes: Array<{ id: string; label: string }>): Ca
     acc[key].push({ id: node.id, label: node.label });
     return acc;
   }, {});
-  return { provider: "rules", degraded: true, groups };
+  return canvasClusterResponseSchema.parse({ provider: "rules", degraded: true, groups });
 }
 
 export async function saveAiSuggestion(app: FastifyInstance, params: {
@@ -181,6 +188,6 @@ export async function saveAiSuggestion(app: FastifyInstance, params: {
     provider: params.provider,
     model: params.model ?? null,
     input_hash: hashInput(params.input),
-    result: params.result
+    result: params.result as any
   });
 }

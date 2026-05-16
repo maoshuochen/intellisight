@@ -1,5 +1,6 @@
-import { Alert, Card, Empty, Grid, Statistic, Typography } from "@arco-design/web-react";
+import { Alert, Button, Card, Empty, Grid, Statistic, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import type { Annotation, Code, Interview } from "@intellisight/shared";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
@@ -36,6 +37,9 @@ export function Home() {
   return (
     <div className="page">
       <Typography.Title heading={3}>Research workspace</Typography.Title>
+      <Button className="page-action" type="primary">
+        <Link to="/workspace">Open Analysis Workspace</Link>
+      </Button>
       {error && <Alert className="page-alert" type="error" content={error.message} />}
       <Grid.Row gutter={16}>
         <Grid.Col span={8}>

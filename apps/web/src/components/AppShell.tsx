@@ -17,7 +17,8 @@ const { Sider, Content } = Layout;
 
 const navItems = [
   { key: "/", label: "Home", icon: <IconDashboard /> },
-  { key: "/outlines", label: "Outlines", icon: <IconBook /> },
+  { key: "/workspace", label: "Analysis Workspace", icon: <IconApps /> },
+  { key: "/outlines", label: "Interview Prep", icon: <IconBook /> },
   { key: "/interviews", label: "Interviews", icon: <IconEdit /> },
   { key: "/codes", label: "Codes", icon: <IconTags /> },
   { key: "/highlights", label: "Highlights", icon: <IconBulb /> },

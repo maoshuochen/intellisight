@@ -89,7 +89,7 @@ export function Outlines() {
           <List
             dataSource={outlines.data ?? []}
             render={(item) => (
-              <List.Item className={item.id === activeOutline?.id ? "active-row" : ""} onClick={() => setActiveId(item.id)}>
+              <List.Item key={item.id} className={item.id === activeOutline?.id ? "active-row" : ""} onClick={() => setActiveId(item.id)}>
                 <List.Item.Meta title={item.name} description={`${item.questions.length} questions`} />
               </List.Item>
             )}

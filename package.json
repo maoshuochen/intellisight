@@ -13,6 +13,7 @@
     "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "test": "npm run test -w apps/api",
     "lint": "npm run lint -w apps/web",
+    "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" > packages/shared/src/database.types.ts",
     "migrate:sqlite": "tsx scripts/migrate-sqlite-to-supabase.ts",
     "legacy:frontend:dev": "npm --prefix frontend run dev",
     "legacy:backend:dev": "cd backend && .venv/bin/python app.py"
@@ -20,7 +21,14 @@
   "devDependencies": {
     "better-sqlite3": "^11.8.1",
     "concurrently": "^9.1.2",
+    "playwright": "^1.60.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3"
+  },
+  "overrides": {
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
   }
 }
