@@ -11,23 +11,14 @@ import {
   type Node as FlowNode
 } from "@xyflow/react";
 import {
-  Alert,
-  Button,
-  Card,
-  Empty,
-  Input,
-  List,
-  Message,
-  Select,
-  Space,
-  Tabs,
-  Tag,
-  Tooltip,
-  Typography
-} from "@arco-design/web-react";
-import { IconDelete, IconMindMapping, IconSave } from "@arco-design/web-react/icon";
+  GitBranchIcon,
+  SaveIcon,
+  TrashIcon
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import type {
   Annotation,
   CanvasClusterResponse,
@@ -39,6 +30,12 @@ import type {
   RecommendCodesResponse,
   TextImproveResponse
 } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CodeBadge, EmptyState, InlineAlert, OptionSelect, PanelCard, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -155,7 +152,7 @@ export function AnalysisWorkspace() {
   });
   const improveText = useMutation({
     mutationFn: (mode: "correct" | "simplify") => api.post<TextImproveResponse>("/ai/text/improve", { projectId, text: selectedText, mode }),
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const createCode = useMutation({
     mutationFn: (name: string) =>
@@ -168,7 +165,7 @@ export function AnalysisWorkspace() {
       setSelectedCodeIds((ids) => (ids.includes(code.id) ? ids : [...ids, code.id]));
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const saveAnnotation = useMutation({
     mutationFn: () =>
@@ -180,9 +177,9 @@ export function AnalysisWorkspace() {
         endOffset: selectionOffsets.end,
         comment: comment || undefined,
         codeIds: selectedCodeIds
-      }),
+    }),
     onSuccess: (annotation) => {
-      Message.success("Annotation saved");
+      toast.success("Annotation saved");
       addAnnotationNode(annotation);
       setSelectedText("");
       setSelectedCodeIds([]);
@@ -192,15 +189,15 @@ export function AnalysisWorkspace() {
       void queryClient.invalidateQueries({ queryKey: ["annotations", projectId] });
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const saveCanvas = useMutation({
     mutationFn: () => api.put<CanvasDocument>(`/canvases/${activeCanvas?.id}`, { name: activeCanvas?.name, nodes, edges, viewport: null }),
     onSuccess: () => {
-      Message.success("Canvas saved");
+      toast.success("Canvas saved");
       void queryClient.invalidateQueries({ queryKey: ["canvases", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const clusterCanvas = useMutation({
     mutationFn: () =>
@@ -208,7 +205,7 @@ export function AnalysisWorkspace() {
         projectId,
         nodes: nodes.map((node) => ({ id: node.id, label: String(node.data?.label ?? ""), text: String(node.data?.label ?? "") }))
       }),
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   function captureSelection(paragraph: Paragraph) {
@@ -290,36 +287,40 @@ export function AnalysisWorkspace() {
   if (!projectId) {
     return (
       <div className="page">
-        <Empty description="Create or select a project first." />
+        <EmptyState description="Create or select a project first." />
       </div>
     );
   }
 
   return (
     <div className="page analysis-workspace">
-      <aside className="workspace-nav">
-        <Typography.Title heading={4}>Project material</Typography.Title>
-        <Input.Search placeholder="Search transcript" value={query} onChange={setQuery} allowClear />
-        <Select
+      <PanelCard title="Project material" className="workspace-nav">
+        <Input placeholder="Search transcript" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <OptionSelect
           placeholder="Speaker"
           allowClear
           value={speaker}
           onChange={setSpeaker}
           options={speakers.map((item) => ({ label: item, value: item }))}
         />
-        <List
-          dataSource={interviews.data ?? []}
-          render={(item) => (
-            <List.Item key={item.id} className={item.id === activeInterviewId ? "active-row" : ""} onClick={() => setSelectedInterviewId(item.id)}>
-              <List.Item.Meta title={item.name} description={item.participantName ?? item.sample ?? "Transcript"} />
-            </List.Item>
-          )}
-        />
-      </aside>
+        <div className="list-stack">
+          {(interviews.data ?? []).map((item) => (
+            <button key={item.id} type="button" className={`list-row clickable-row ${item.id === activeInterviewId ? "active-row" : ""}`} onClick={() => setSelectedInterviewId(item.id)}>
+              <strong>{item.name}</strong>
+              <TextMuted>{item.participantName ?? item.sample ?? "Transcript"}</TextMuted>
+            </button>
+          ))}
+        </div>
+      </PanelCard>
 
       <main className="workspace-main">
-        <Tabs activeTab={centerTab} onChange={setCenterTab}>
-          <Tabs.TabPane key="transcript" title="Transcript">
+        <Tabs value={centerTab} onValueChange={(value) => setCenterTab(String(value))}>
+          <TabsList>
+            <TabsTrigger value="transcript">Transcript</TabsTrigger>
+            <TabsTrigger value="highlights">Highlights ({filteredHighlights.length})</TabsTrigger>
+            <TabsTrigger value="canvas">Canvas</TabsTrigger>
+          </TabsList>
+          <TabsContent value="transcript">
             <div className="paragraph-list workspace-scroll">
               {filteredParagraphs.map((paragraph) => (
                 <article className="paragraph" key={paragraph.id} onMouseUp={() => captureSelection(paragraph)}>
@@ -330,63 +331,79 @@ export function AnalysisWorkspace() {
                   <p>{renderParagraphText(paragraph)}</p>
                 </article>
               ))}
-              {!filteredParagraphs.length && <Empty description="No transcript paragraphs match the current filters." />}
+              {!filteredParagraphs.length && (
+                <EmptyState
+                  description="No transcript paragraphs match the current filters."
+                  action={
+                    <Button variant="outline" render={<Link to="/interviews" />}>
+                      Open Interviews
+                    </Button>
+                  }
+                />
+              )}
             </div>
-          </Tabs.TabPane>
-          <Tabs.TabPane key="highlights" title={`Highlights (${filteredHighlights.length})`}>
-            <Space direction="vertical" className="full-width-space">
-              <Input.Search placeholder="Filter highlights or context" value={highlightQuery} onChange={setHighlightQuery} allowClear />
-              <List
-                dataSource={filteredHighlights}
-                render={(item) => (
-                  <List.Item key={item.id} className="clickable-row" onClick={() => selectHighlight(item)}>
-                    <List.Item.Meta
-                      title={item.text}
-                      description={
-                        <Space direction="vertical" size={4}>
-                          <Typography.Text type="secondary">
-                            {item.paragraphs?.speaker ?? "Speaker"} · {item.paragraphs?.startTime ?? ""} · Codes: {item.codeIds.length}
-                          </Typography.Text>
-                          <Typography.Text type="secondary" ellipsis={{ rows: 2 }}>
-                            {item.paragraphs?.text ?? "No context available"}
-                          </Typography.Text>
-                          <Button size="mini" onClick={(event) => { event.stopPropagation(); addAnnotationNode(item); }}>
-                            Add to canvas
-                          </Button>
-                        </Space>
-                      }
-                    />
-                  </List.Item>
+          </TabsContent>
+          <TabsContent value="highlights">
+            <div className="flex flex-col gap-4">
+              <Input placeholder="Filter highlights or context" value={highlightQuery} onChange={(event) => setHighlightQuery(event.target.value)} />
+              <div className="list-stack">
+                {filteredHighlights.map((item) => (
+                  <button key={item.id} type="button" className="list-row clickable-row" onClick={() => selectHighlight(item)}>
+                    <strong>{item.text}</strong>
+                    <TextMuted>{item.paragraphs?.speaker ?? "Speaker"} · {item.paragraphs?.startTime ?? ""} · Codes: {item.codeIds.length}</TextMuted>
+                    <TextMuted className="line-clamp-2">{item.paragraphs?.text ?? "No context available"}</TextMuted>
+                    <Button size="sm" variant="outline" onClick={(event) => { event.stopPropagation(); addAnnotationNode(item); }}>
+                      Add to canvas
+                    </Button>
+                  </button>
+                ))}
+                {!filteredHighlights.length && (
+                  <EmptyState
+                    description="No highlights yet. Select transcript text, choose codes, then save an annotation."
+                    action={
+                      <Button variant="outline" onClick={() => setCenterTab("transcript")}>
+                        Go to transcript
+                      </Button>
+                    }
+                  />
                 )}
-              />
-            </Space>
-          </Tabs.TabPane>
-          <Tabs.TabPane key="canvas" title="Canvas">
-            <Space className="toolbar" wrap>
-              <Select
+              </div>
+            </div>
+          </TabsContent>
+          <TabsContent value="canvas">
+            <div className="toolbar">
+              <OptionSelect
                 placeholder="Canvas"
                 value={activeCanvas?.id}
                 onChange={setCanvasId}
                 options={(canvases.data ?? []).map((canvas) => ({ label: canvas.name, value: canvas.id }))}
-                style={{ width: 220 }}
+                className="w-[220px]"
               />
-              <Button icon={<IconSave />} disabled={!activeCanvas} loading={saveCanvas.isPending} onClick={() => saveCanvas.mutate()}>
+              <Button variant="outline" disabled={!activeCanvas || saveCanvas.isPending} onClick={() => saveCanvas.mutate()}>
+                <SaveIcon data-icon="inline-start" />
                 Save
               </Button>
-              <Button icon={<IconMindMapping />} disabled={!nodes.length} loading={clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
+              <Button variant="outline" disabled={!nodes.length || clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
+                <GitBranchIcon data-icon="inline-start" />
                 Cluster
               </Button>
               {clusterCanvas.data && (
-                <Button size="small" type="primary" onClick={addThemeNodes}>
+                <Button size="sm" onClick={addThemeNodes}>
                   Add themes
                 </Button>
               )}
-            </Space>
+            </div>
             {clusterCanvas.data && (
-              <Alert
-                className="page-alert"
-                type={clusterCanvas.data.degraded ? "warning" : "info"}
-                content={`${clusterCanvas.data.degraded ? "Fallback" : "AI"} clustering produced ${Object.keys(clusterCanvas.data.groups).length} themes.`}
+              <InlineAlert>{`${clusterCanvas.data.degraded ? "Fallback" : "AI"} clustering produced ${Object.keys(clusterCanvas.data.groups).length} themes.`}</InlineAlert>
+            )}
+            {!nodes.length && (
+              <EmptyState
+                description="Canvas is empty. Save a coded highlight or add a highlight from the Highlights tab."
+                action={
+                  <Button variant="outline" onClick={() => setCenterTab("highlights")}>
+                    Review highlights
+                  </Button>
+                }
               />
             )}
             <div className="workspace-canvas">
@@ -402,157 +419,157 @@ export function AnalysisWorkspace() {
                 <Controls />
               </ReactFlow>
             </div>
-          </Tabs.TabPane>
+          </TabsContent>
         </Tabs>
       </main>
 
-      <aside className="workspace-side">
-        <Typography.Title heading={4}>Quote & AI</Typography.Title>
+      <PanelCard title="Quote & AI" className="workspace-side">
         {selectedText ? (
-          <Space direction="vertical" className="full-width-space">
-            <Typography.Paragraph ellipsis={{ rows: 5, expandable: true }}>{selectedText}</Typography.Paragraph>
-            {recommendations.data?.degraded && <Alert type="warning" content="AI provider unavailable. Rule-based recommendations are shown." />}
-            <Space>
-              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("correct")}>
+          <div className="flex flex-col gap-4">
+            <p className="quote-preview">{selectedText}</p>
+            {recommendations.data?.degraded && <InlineAlert>AI provider unavailable. Rule-based recommendations are shown.</InlineAlert>}
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("correct")}>
                 Correct
               </Button>
-              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
+              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
                 Simplify
               </Button>
-            </Space>
+            </div>
             {improveText.data && (
-              <Alert
-                type={improveText.data.degraded ? "warning" : "info"}
-                content={
-                  <Space direction="vertical" className="full-width-space">
-                    <Typography.Text>{improveText.data.text}</Typography.Text>
-                    <Typography.Text type="secondary">{improveText.data.reason}</Typography.Text>
-                    <Button size="mini" type="primary" onClick={() => setSelectedText(improveText.data.text)}>
-                      Use candidate
-                    </Button>
-                  </Space>
-                }
-              />
+              <InlineAlert>
+                <div className="flex flex-col gap-2">
+                  <span>{improveText.data.text}</span>
+                  <TextMuted>{improveText.data.reason}</TextMuted>
+                  <Button size="sm" onClick={() => setSelectedText(improveText.data.text)}>Use candidate</Button>
+                </div>
+              </InlineAlert>
             )}
-            <Typography.Text type="secondary">Selected codes</Typography.Text>
-            <Space wrap>
+            <TextMuted>Selected codes</TextMuted>
+            <div className="badge-row">
               {selectedCodeIds.map((id) => (
-                <Tag key={id} closable onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
+                <CodeBadge key={id} onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
                   {codeMap.get(id)?.name ?? id}
-                </Tag>
+                </CodeBadge>
               ))}
-            </Space>
-            <Typography.Text type="secondary">Recommendations</Typography.Text>
-            <Space wrap>
-              {recommendations.isPending && <Tag>Loading...</Tag>}
+            </div>
+            <TextMuted>Recommendations</TextMuted>
+            <div className="badge-row">
+              {recommendations.isPending && <CodeBadge tone="gray">Loading...</CodeBadge>}
               {(recommendations.data?.recommendations ?? []).map((item) => (
-                <Tooltip key={item.id ?? item.label} content={`${Math.round(item.score * 100)}% · ${item.reason}`}>
-                  <Tag
-                    color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "gray"}
-                    onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}
-                  >
-                    {item.label}
-                  </Tag>
+                <Tooltip key={item.id ?? item.label}>
+                  <TooltipTrigger>
+                    <CodeBadge selected={selectedCodeIds.includes(item.id ?? "")} tone="gray" onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}>
+                      {item.label}
+                    </CodeBadge>
+                  </TooltipTrigger>
+                  <TooltipContent>{Math.round(item.score * 100)}% · {item.reason}</TooltipContent>
                 </Tooltip>
               ))}
-            </Space>
-            <Typography.Text type="secondary">Keyword candidates</Typography.Text>
-            <Space wrap>
-              {keywords.isPending && <Tag>Extracting...</Tag>}
+            </div>
+            <TextMuted>Keyword candidates</TextMuted>
+            <div className="badge-row">
+              {keywords.isPending && <CodeBadge tone="gray">Extracting...</CodeBadge>}
               {(keywords.data?.keywords ?? []).map((keyword) => (
-                <Tag key={keyword} color="green" onClick={() => createCode.mutate(keyword)}>
+                <CodeBadge key={keyword} tone="green" onClick={() => createCode.mutate(keyword)}>
                   + {keyword}
-                </Tag>
+                </CodeBadge>
               ))}
-            </Space>
-            <Button type="primary" disabled={!selectedParagraphId || !selectedCodeIds.length} loading={saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
+            </div>
+            <Button disabled={!selectedParagraphId || !selectedCodeIds.length || saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
               Save annotation
             </Button>
-          </Space>
+          </div>
         ) : (
-          <Typography.Text type="secondary">Select transcript text or a highlight to start coding.</Typography.Text>
+          <TextMuted>Select transcript text or a highlight to start coding.</TextMuted>
         )}
-        <Typography.Title heading={5}>Codes</Typography.Title>
-        <Space direction="vertical" className="full-width-space">
+        <h3 className="section-title">Codes</h3>
+        <div className="flex flex-col gap-3">
           {(codeGroups.data ?? []).map((group) => (
-            <Card key={group.id} bordered={false} className="compact-card">
-              <Space direction="vertical" className="full-width-space" size={8}>
-                <Tag color={group.color}>{group.name}</Tag>
-                <Space wrap>
+            <Card key={group.id} className="compact-card">
+              <CardContent>
+                <CodeBadge tone={group.color}>{group.name}</CodeBadge>
+                <div className="badge-row mt-2">
                   {(groupedCodes.get(group.id) ?? []).map((code) => (
-                    <Tag
+                    <CodeBadge
                       key={code.id}
-                      color={selectedCodeIds.includes(code.id) ? "arcoblue" : "gray"}
+                      selected={selectedCodeIds.includes(code.id)}
+                      tone="gray"
                       onClick={() => setSelectedCodeIds((ids) => (ids.includes(code.id) ? ids.filter((id) => id !== code.id) : [...ids, code.id]))}
                     >
                       {code.name}
-                    </Tag>
+                    </CodeBadge>
                   ))}
-                </Space>
-              </Space>
+                </div>
+              </CardContent>
             </Card>
           ))}
-        </Space>
-      </aside>
+        </div>
+      </PanelCard>
 
       {selectedText && selectionBox && (
         <div className="coding-popover" style={{ top: selectionBox.top, left: selectionBox.left }}>
-          <Input.Search
+          <Input
             autoFocus
             placeholder="Type to search codes"
             value={codeSearch}
-            onChange={setCodeSearch}
-            onPressEnter={() => codeSearch.trim() && createCode.mutate(codeSearch.trim())}
+            onChange={(event) => setCodeSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && codeSearch.trim()) createCode.mutate(codeSearch.trim());
+            }}
           />
-          <Typography.Text type="secondary">Selected</Typography.Text>
-          <Space wrap>
+          <TextMuted>Selected</TextMuted>
+          <div className="badge-row">
             {selectedCodeIds.length ? (
               selectedCodeIds.map((id) => (
-                <Tag key={id} closable color={codeMap.get(id)?.codeGroupId ? codeGroups.data?.find((group) => group.id === codeMap.get(id)?.codeGroupId)?.color : "arcoblue"} onClose={() => toggleCode(id)}>
+                <CodeBadge key={id} tone={codeMap.get(id)?.codeGroupId ? codeGroups.data?.find((group) => group.id === codeMap.get(id)?.codeGroupId)?.color : "arcoblue"} onClose={() => toggleCode(id)}>
                   {codeMap.get(id)?.name ?? id}
-                </Tag>
+                </CodeBadge>
               ))
             ) : (
-              <Typography.Text type="secondary">No codes selected</Typography.Text>
+              <TextMuted>No codes selected</TextMuted>
             )}
-          </Space>
-          <Typography.Text type="secondary">Recommendation</Typography.Text>
-          <Space wrap>
-            {recommendations.isPending && <Tag>Loading...</Tag>}
+          </div>
+          <TextMuted>Recommendation</TextMuted>
+          <div className="badge-row">
+            {recommendations.isPending && <CodeBadge tone="gray">Loading...</CodeBadge>}
             {(recommendations.data?.recommendations ?? []).map((item) => (
-              <Tooltip key={item.id ?? item.label} content={`${Math.round(item.score * 100)}% · ${item.reason}`}>
-                <Tag color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "purple"} onClick={() => item.id && toggleCode(item.id)}>
-                  {item.label}
-                </Tag>
+              <Tooltip key={item.id ?? item.label}>
+                <TooltipTrigger>
+                  <CodeBadge selected={selectedCodeIds.includes(item.id ?? "")} tone="purple" onClick={() => item.id && toggleCode(item.id)}>
+                    {item.label}
+                  </CodeBadge>
+                </TooltipTrigger>
+                <TooltipContent>{Math.round(item.score * 100)}% · {item.reason}</TooltipContent>
               </Tooltip>
             ))}
             {filteredCodes.map((code) => (
-              <Tag key={code.id} color={selectedCodeIds.includes(code.id) ? "arcoblue" : "gray"} onClick={() => toggleCode(code.id)}>
+              <CodeBadge key={code.id} selected={selectedCodeIds.includes(code.id)} tone="gray" onClick={() => toggleCode(code.id)}>
                 {code.name}
-              </Tag>
+              </CodeBadge>
             ))}
-          </Space>
+          </div>
           <div className="coding-popover-create">
             {(keywords.data?.keywords ?? []).slice(0, 2).map((keyword) => (
-              <Button key={keyword} type="text" long onClick={() => createCode.mutate(keyword)}>
+              <Button key={keyword} variant="ghost" className="justify-start" onClick={() => createCode.mutate(keyword)}>
                 Create {keyword}
               </Button>
             ))}
             {codeSearch.trim() && !filteredCodes.some((code) => code.name.toLowerCase() === codeSearch.trim().toLowerCase()) && (
-              <Button type="text" long onClick={() => createCode.mutate(codeSearch.trim())}>
+              <Button variant="ghost" className="justify-start" onClick={() => createCode.mutate(codeSearch.trim())}>
                 Create {codeSearch.trim()}
               </Button>
             )}
           </div>
-          <Input placeholder="Add comment" value={comment} onChange={setComment} />
+          <Input placeholder="Add comment" value={comment} onChange={(event) => setComment(event.target.value)} />
           <div className="coding-popover-actions">
-            <Button icon={<IconDelete />} onClick={clearSelection} />
-            <Space>
-              <Button onClick={clearSelection}>Cancel</Button>
-              <Button type="primary" disabled={!selectedParagraphId || !selectedCodeIds.length} loading={saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
+            <Button size="icon-sm" variant="ghost" onClick={clearSelection}><TrashIcon /></Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={clearSelection}>Cancel</Button>
+              <Button disabled={!selectedParagraphId || !selectedCodeIds.length || saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
                 Save
               </Button>
-            </Space>
+            </div>
           </div>
         </div>
       )}

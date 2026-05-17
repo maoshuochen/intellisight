@@ -1,8 +1,10 @@
 import { Suspense, lazy } from "react";
 import { Navigate, RouterProvider, createBrowserRouter } from "react-router-dom";
-import { Spin } from "@arco-design/web-react";
+import { Toaster } from "sonner";
 import { AppShell } from "./components/AppShell";
 import { AuthGate } from "./components/AuthGate";
+import { LoadingBlock } from "./components/ui/app-kit";
+import { TooltipProvider } from "./components/ui/tooltip";
 
 const AnalysisWorkspace = lazy(() => import("./pages/AnalysisWorkspace").then((module) => ({ default: module.AnalysisWorkspace })));
 const Canvas = lazy(() => import("./pages/Canvas").then((module) => ({ default: module.Canvas })));
@@ -15,11 +17,7 @@ const Reports = lazy(() => import("./pages/Reports").then((module) => ({ default
 const Settings = lazy(() => import("./pages/Settings").then((module) => ({ default: module.Settings })));
 
 function PageLoader() {
-  return (
-    <div className="center-screen">
-      <Spin size={32} />
-    </div>
-  );
+  return <LoadingBlock />;
 }
 
 const router = createBrowserRouter([
@@ -43,10 +41,13 @@ const router = createBrowserRouter([
 
 export function App() {
   return (
-    <AuthGate>
-      <Suspense fallback={<PageLoader />}>
-        <RouterProvider router={router} />
-      </Suspense>
-    </AuthGate>
+    <TooltipProvider>
+      <AuthGate>
+        <Suspense fallback={<PageLoader />}>
+          <RouterProvider router={router} />
+        </Suspense>
+      </AuthGate>
+      <Toaster richColors closeButton />
+    </TooltipProvider>
   );
 }

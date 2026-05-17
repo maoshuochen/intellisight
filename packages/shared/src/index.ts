@@ -55,6 +55,7 @@ export const codeSchema = z.object({
   projectId: uuidSchema,
   codeGroupId: uuidSchema,
   name: z.string(),
+  definition: z.string().nullable().optional(),
   owner: z.string().nullable(),
   usage: z.number().default(0),
   createdAt: z.string()
@@ -135,6 +136,7 @@ export const createCodeSchema = z.object({
   projectId: uuidSchema,
   codeGroupId: uuidSchema,
   name: z.string().min(1),
+  definition: z.string().optional(),
   owner: z.string().optional()
 });
 
@@ -152,6 +154,7 @@ export const updateCodeGroupSchema = z.object({
 
 export const updateCodeSchema = z.object({
   name: z.string().min(1).optional(),
+  definition: z.string().nullable().optional(),
   codeGroupId: uuidSchema.optional()
 });
 
@@ -172,6 +175,14 @@ export const createInterviewSchema = z.object({
       })
     )
     .min(1)
+});
+
+export const importTranscriptSchema = z.object({
+  projectId: uuidSchema,
+  name: z.string().min(1),
+  sample: z.string().optional(),
+  participantName: z.string().optional(),
+  transcript: z.string().min(1)
 });
 
 export const createAnnotationSchema = z.object({
@@ -256,6 +267,7 @@ export const clusterCanvasRequestSchema = z.object({
 
 export const updateAiSettingsSchema = z.object({
   enabled: z.boolean().default(true),
+  projectId: uuidSchema.optional(),
   apiBase: z.string().url(),
   apiKey: z.string().optional(),
   model: z.string().min(1)

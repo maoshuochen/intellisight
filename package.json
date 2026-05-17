@@ -12,6 +12,7 @@
     "build": "npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
     "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "test": "npm run test -w apps/api",
+    "smoke:web": "node scripts/smoke-web.mjs",
     "lint": "npm run lint -w apps/web",
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" > packages/shared/src/database.types.ts",
     "migrate:sqlite": "tsx scripts/migrate-sqlite-to-supabase.ts",

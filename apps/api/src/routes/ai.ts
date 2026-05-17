@@ -4,43 +4,53 @@ import {
   extractKeywordsRequestSchema,
   recommendCodesRequestSchema,
   textImproveRequestSchema,
+  uuidSchema,
   updateAiSettingsSchema
 } from "@intellisight/shared";
 import { clusterCanvas, extractKeywords, improveText, recommendCodes, saveAiSuggestion } from "../services/ai.js";
-import { getAiConfig, updateAiConfig } from "../services/aiConfig.js";
+import { aiStatusFromConfig, getAiConfig, updateAiConfig, type AiProviderConfig } from "../services/aiConfig.js";
 import { assertProjectRole } from "../services/projects.js";
+import { toCamel } from "../utils/case.js";
 
 export const aiRoutes: FastifyPluginAsync = async (app) => {
-  app.get("/ai/status", async () => {
-    const config = getAiConfig();
-    return {
-      enabled: config.enabled,
-      provider: "openai-compatible",
-      model: config.enabled && config.apiKey ? config.model : null,
-      apiBase: config.apiBase,
-      configured: Boolean(config.enabled && config.apiKey),
-      apiKeyConfigured: Boolean(config.apiKey),
-      source: config.source
-    };
+  app.get("/ai/status", async (request) => {
+    const projectId = (request.query as { projectId?: string }).projectId;
+    if (!projectId) return aiStatusFromConfig(getAiConfig());
+    const parsedProjectId = uuidSchema.parse(projectId);
+    await assertProjectRole(app, request.user.id, parsedProjectId);
+    const config = await getProjectAiConfig(parsedProjectId);
+    return aiStatusFromConfig(config);
   });
 
   app.put("/ai/settings", async (request) => {
     const body = updateAiSettingsSchema.parse(request.body);
-    const config = updateAiConfig({
+    if (body.projectId) {
+      await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+      const current = await getProjectAiConfig(body.projectId);
+      const { data, error } = await (app.supabase as any)
+        .from("project_ai_settings")
+        .upsert({
+          project_id: body.projectId,
+          enabled: body.enabled,
+          api_base: body.apiBase,
+          api_key: body.apiKey?.trim() || current.apiKey || null,
+          model: body.model,
+          created_by: request.user.id
+        })
+        .select("*")
+        .single();
+      if (error) throw error;
+      const config = rowToAiConfig(data as any);
+      updateAiConfig(config);
+      return aiStatusFromConfig(config);
+    }
+
+    return aiStatusFromConfig(updateAiConfig({
       enabled: body.enabled,
       apiBase: body.apiBase,
       apiKey: body.apiKey,
       model: body.model
-    });
-    return {
-      enabled: config.enabled,
-      provider: "openai-compatible",
-      model: config.enabled && config.apiKey ? config.model : null,
-      apiBase: config.apiBase,
-      configured: Boolean(config.enabled && config.apiKey),
-      apiKeyConfigured: Boolean(config.apiKey),
-      source: config.source
-    };
+    }));
   });
 
   app.post("/ai/codes/recommend", async (request) => {
@@ -106,4 +116,22 @@ export const aiRoutes: FastifyPluginAsync = async (app) => {
     });
     return result;
   });
+
+  async function getProjectAiConfig(projectId: string): Promise<AiProviderConfig> {
+    const { data, error } = await (app.supabase as any).from("project_ai_settings").select("*").eq("project_id", projectId).maybeSingle();
+    if (error) throw error;
+    if (!data) return getAiConfig();
+    return rowToAiConfig(data as any);
+  }
+
+  function rowToAiConfig(row: Record<string, any>): AiProviderConfig {
+    const item = toCamel(row) as { enabled: boolean; apiBase: string; apiKey?: string | null; model: string };
+    return {
+      enabled: item.enabled,
+      apiBase: item.apiBase,
+      apiKey: item.apiKey ?? undefined,
+      model: item.model,
+      source: "runtime"
+    };
+  }
 };

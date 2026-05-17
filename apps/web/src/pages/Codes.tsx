@@ -1,8 +1,12 @@
-import { Button, Card, Empty, Input, Message, Select, Space, Tag, Typography } from "@arco-design/web-react";
-import { IconArrowLeft, IconArrowRight, IconDelete, IconEdit, IconPlus } from "@arco-design/web-react/icon";
+import { ArrowLeftIcon, ArrowRightIcon, EditIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { Code, CodeGroup } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { CodeBadge, ColorSwatchPicker, EmptyState, OptionSelect, PageTitle, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -15,6 +19,7 @@ export function Codes() {
   const [newGroupName, setNewGroupName] = useState("");
   const [renamingCodeId, setRenamingCodeId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [definitionValue, setDefinitionValue] = useState("");
   const queryClient = useQueryClient();
   const enabled = Boolean(projectId);
 
@@ -40,13 +45,13 @@ export function Codes() {
       setNewGroupName("");
       invalidate();
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const updateGroup = useMutation({
     mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<CodeGroup, "color" | "name">> }) => api.patch<CodeGroup>(`/code-groups/${id}`, patch),
     onSuccess: invalidate,
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const createCode = useMutation({
@@ -60,23 +65,24 @@ export function Codes() {
       setName("");
       invalidate();
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const updateCode = useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Code, "name" | "codeGroupId">> }) => api.patch<Code>(`/codes/${id}`, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Pick<Code, "name" | "codeGroupId" | "definition">> }) => api.patch<Code>(`/codes/${id}`, patch),
     onSuccess: () => {
       setRenamingCodeId(null);
       setRenameValue("");
+      setDefinitionValue("");
       invalidate();
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const deleteCode = useMutation({
     mutationFn: (id: string) => api.delete(`/codes/${id}`),
     onSuccess: invalidate,
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const groupedCodes = useMemo(() => {
@@ -86,29 +92,36 @@ export function Codes() {
     return map;
   }, [codes.data, groups.data]);
 
-  if (!projectId) return <Empty description="Create or select a project first." />;
+  useEffect(() => {
+    if (!groupId && groups.data?.[0]) setGroupId(groups.data[0].id);
+  }, [groupId, groups.data]);
+
+  if (!projectId) return <EmptyState description="Create or select a project first." />;
 
   return (
     <div className="page">
-      <Typography.Title heading={3}>Codes</Typography.Title>
-      <Card bordered={false}>
-        <Space className="toolbar" wrap>
-          <Input placeholder="New code" value={name} onChange={setName} style={{ width: 220 }} />
-          <Select
+      <PageTitle title="Codes" description="Manage the project codebook and move codes between groups." />
+      <Card>
+        <CardContent>
+        <div className="toolbar">
+          <Input className="w-[220px]" placeholder="New code" value={name} onChange={(event) => setName(event.target.value)} />
+          <OptionSelect
             placeholder="Group"
             value={groupId}
             onChange={setGroupId}
             options={(groups.data ?? []).map((group) => ({ label: group.name, value: group.id }))}
-            style={{ width: 180 }}
+            className="w-[180px]"
           />
-          <Button type="primary" icon={<IconPlus />} disabled={!name || !(groupId ?? groups.data?.[0]?.id)} loading={createCode.isPending} onClick={() => createCode.mutate()}>
+          <Button disabled={!name.trim() || !(groupId ?? groups.data?.[0]?.id) || createCode.isPending} onClick={() => createCode.mutate()}>
+            <PlusIcon data-icon="inline-start" />
             Add code
           </Button>
-          <Input placeholder="New group" value={newGroupName} onChange={setNewGroupName} style={{ width: 180 }} />
-          <Button icon={<IconPlus />} disabled={!newGroupName} loading={createGroup.isPending} onClick={() => createGroup.mutate()}>
+          <Input className="w-[180px]" placeholder="New group" value={newGroupName} onChange={(event) => setNewGroupName(event.target.value)} />
+          <Button variant="outline" disabled={!newGroupName || createGroup.isPending} onClick={() => createGroup.mutate()}>
+            <PlusIcon data-icon="inline-start" />
             Add group
           </Button>
-        </Space>
+        </div>
         <div className="code-board">
           {(groups.data ?? []).map((group, groupIndex) => {
             const previousGroup = groups.data?.[groupIndex - 1];
@@ -116,42 +129,50 @@ export function Codes() {
             return (
               <section className="code-column" key={group.id}>
                 <div className="code-column-header">
-                  <Tag color={group.color}>{group.name}</Tag>
-                  <Select
-                    size="mini"
-                    value={group.color}
-                    onChange={(color) => updateGroup.mutate({ id: group.id, patch: { color } })}
-                    options={colorOptions.map((color) => ({ label: color, value: color }))}
-                    style={{ width: 100 }}
-                  />
+                  <CodeBadge tone={group.color}>{group.name}</CodeBadge>
+                  <ColorSwatchPicker value={group.color} options={colorOptions} onChange={(color) => updateGroup.mutate({ id: group.id, patch: { color } })} />
                 </div>
-                <Space direction="vertical" className="full-width-space">
+                <div className="flex flex-col gap-2">
                   {(groupedCodes.get(group.id) ?? []).map((code) => (
                     <div className="code-card" key={code.id}>
                       {renamingCodeId === code.id ? (
-                        <Input
-                          autoFocus
-                          value={renameValue}
-                          onChange={setRenameValue}
-                          onPressEnter={() => updateCode.mutate({ id: code.id, patch: { name: renameValue } })}
-                        />
+                        <div className="code-edit-form">
+                          <Input
+                            autoFocus
+                            value={renameValue}
+                            onChange={(event) => setRenameValue(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter") updateCode.mutate({ id: code.id, patch: { name: renameValue, definition: definitionValue || null } });
+                            }}
+                          />
+                          <Input value={definitionValue} onChange={(event) => setDefinitionValue(event.target.value)} placeholder="Definition / memo" />
+                          <div className="flex gap-2">
+                            <Button size="sm" onClick={() => updateCode.mutate({ id: code.id, patch: { name: renameValue, definition: definitionValue || null } })}>Save</Button>
+                            <Button size="sm" variant="outline" onClick={() => setRenamingCodeId(null)}>Cancel</Button>
+                          </div>
+                        </div>
                       ) : (
-                        <Typography.Text>{code.name}</Typography.Text>
+                        <div>
+                          <span>{code.name}</span>
+                          {code.definition && <TextMuted className="code-definition">{code.definition}</TextMuted>}
+                        </div>
                       )}
-                      <Space size={4}>
-                        <Tag>{code.usage}</Tag>
-                        <Button size="mini" icon={<IconArrowLeft />} disabled={!previousGroup} onClick={() => previousGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: previousGroup.id } })} />
-                        <Button size="mini" icon={<IconArrowRight />} disabled={!nextGroup} onClick={() => nextGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: nextGroup.id } })} />
-                        <Button size="mini" icon={<IconEdit />} onClick={() => { setRenamingCodeId(code.id); setRenameValue(code.name); }} />
-                        <Button size="mini" status="danger" icon={<IconDelete />} onClick={() => deleteCode.mutate(code.id)} />
-                      </Space>
+                      <div className="code-actions">
+                        <CodeBadge tone="gray">{code.usage}</CodeBadge>
+                        <Button size="icon-xs" variant="ghost" disabled={!previousGroup} onClick={() => previousGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: previousGroup.id } })}><ArrowLeftIcon /></Button>
+                        <Button size="icon-xs" variant="ghost" disabled={!nextGroup} onClick={() => nextGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: nextGroup.id } })}><ArrowRightIcon /></Button>
+                        <Button size="icon-xs" variant="ghost" onClick={() => { setRenamingCodeId(code.id); setRenameValue(code.name); setDefinitionValue(code.definition ?? ""); }}><EditIcon /></Button>
+                        <Button size="icon-xs" variant="destructive" onClick={() => deleteCode.mutate(code.id)}><TrashIcon /></Button>
+                      </div>
                     </div>
                   ))}
-                </Space>
+                  {!(groupedCodes.get(group.id) ?? []).length && <TextMuted className="code-empty-hint">No codes in this group yet.</TextMuted>}
+                </div>
               </section>
             );
           })}
         </div>
+        </CardContent>
       </Card>
     </div>
   );

@@ -1,6 +1,11 @@
-import { Button, Card, Form, Input, Message, Space, Typography } from "@arco-design/web-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { LoadingBlock } from "@/components/ui/app-kit";
 import { supabase } from "../lib/supabase";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -21,46 +26,48 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   async function signIn() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) Message.error(error.message);
+    if (error) toast.error(error.message);
     setLoading(false);
   }
 
   async function signUp() {
     setLoading(true);
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) Message.error(error.message);
-    else Message.success("Account created. Confirm email if your Supabase project requires it.");
+    if (error) toast.error(error.message);
+    else toast.success("Account created. Confirm email if your Supabase project requires it.");
     setLoading(false);
   }
 
-  if (loading) return <div className="center-screen">Loading...</div>;
+  if (loading) return <LoadingBlock />;
   if (session) return children;
 
   return (
     <div className="login-screen">
       <Card className="login-card">
-        <Space direction="vertical" size={20} className="full-width-space">
-          <div>
-            <Typography.Title heading={3}>IntelliSight</Typography.Title>
-            <Typography.Text type="secondary">Sign in with your Supabase account to open the research workspace.</Typography.Text>
-          </div>
-          <Form layout="vertical">
-            <Form.Item label="Email">
-              <Input value={email} onChange={setEmail} placeholder="you@example.com" />
-            </Form.Item>
-            <Form.Item label="Password">
-              <Input.Password value={password} onChange={setPassword} placeholder="Password" />
-            </Form.Item>
-          </Form>
-          <Space>
-            <Button type="primary" loading={loading} onClick={signIn}>
+        <CardHeader>
+          <CardTitle>IntelliSight</CardTitle>
+          <CardDescription>AI-assisted qualitative coding for interviews, highlights, and research synthesis.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-5">
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input id="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="you@example.com" />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Password" />
+            </Field>
+          </FieldGroup>
+          <div className="flex gap-2">
+            <Button disabled={loading} onClick={signIn}>
               Sign in
             </Button>
-            <Button loading={loading} onClick={signUp}>
+            <Button variant="outline" disabled={loading} onClick={signUp}>
               Create account
             </Button>
-          </Space>
-        </Space>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

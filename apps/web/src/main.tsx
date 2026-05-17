@@ -1,4 +1,3 @@
-import "@arco-design/web-react/dist/css/arco.css";
 import "./styles/app.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";

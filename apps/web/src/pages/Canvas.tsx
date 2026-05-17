@@ -10,11 +10,14 @@ import {
   type Edge,
   type Node
 } from "@xyflow/react";
-import { Alert, Button, Card, Empty, List, Message, Select, Space, Tag, Typography } from "@arco-design/web-react";
-import { IconMindMapping, IconPlus, IconSave } from "@arco-design/web-react/icon";
+import { GitBranchIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { Annotation, CanvasClusterResponse, CanvasDocument } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { CodeBadge, EmptyState, InlineAlert, OptionSelect, PanelCard, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -54,10 +57,10 @@ export function Canvas() {
   const saveCanvas = useMutation({
     mutationFn: () => api.put<CanvasDocument>(`/canvases/${activeCanvas?.id}`, { name: activeCanvas?.name, nodes, edges, viewport: null }),
     onSuccess: () => {
-      Message.success("Canvas saved");
+      toast.success("Canvas saved");
       void queryClient.invalidateQueries({ queryKey: ["canvases", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const clusterCanvas = useMutation({
@@ -66,7 +69,7 @@ export function Canvas() {
         projectId,
         nodes: nodes.map((node) => ({ id: node.id, label: String(node.data?.label ?? ""), text: String(node.data?.label ?? "") }))
       }),
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   function addAnnotationNode(annotation: Annotation) {
@@ -93,69 +96,81 @@ export function Canvas() {
     ]);
   }
 
-  if (!projectId) return <Empty description="Create or select a project first." />;
+  if (!projectId) return <EmptyState description="Create or select a project first." />;
 
   return (
     <div className="page split-page canvas-workspace">
-      <Card className="left-panel" bordered={false}>
-        <Space direction="vertical" className="full-width-space">
-          <Typography.Title heading={4}>Canvases</Typography.Title>
-          <Button icon={<IconPlus />} type="primary" long loading={createCanvas.isPending} onClick={() => createCanvas.mutate()}>
+      <PanelCard title="Canvases" className="left-panel">
+        <div className="flex flex-col gap-3">
+          <Button disabled={createCanvas.isPending} onClick={() => createCanvas.mutate()}>
+            <PlusIcon data-icon="inline-start" />
             New canvas
           </Button>
-          <Select
+          <OptionSelect
             placeholder="Canvas"
             value={activeCanvas?.id}
             onChange={setCanvasId}
             options={(canvases.data ?? []).map((canvas) => ({ label: canvas.name, value: canvas.id }))}
           />
-          <Button icon={<IconSave />} long disabled={!activeCanvas} loading={saveCanvas.isPending} onClick={() => saveCanvas.mutate()}>
+          <Button variant="outline" disabled={!activeCanvas || saveCanvas.isPending} onClick={() => saveCanvas.mutate()}>
+            <SaveIcon data-icon="inline-start" />
             Save canvas
           </Button>
-          <Button icon={<IconMindMapping />} long disabled={!nodes.length} loading={clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
+          <Button variant="outline" disabled={!nodes.length || clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
+            <GitBranchIcon data-icon="inline-start" />
             Cluster nodes
           </Button>
           {clusterCanvas.data && (
-            <Alert
-              type={clusterCanvas.data.degraded ? "warning" : "info"}
-              content={
-                <Space direction="vertical" className="full-width-space">
-                  <Typography.Text>{clusterCanvas.data.degraded ? "Fallback clustering" : "AI clustering"} produced {Object.keys(clusterCanvas.data.groups).length} themes.</Typography.Text>
-                  <Space wrap>
+            <InlineAlert>
+              <div className="flex flex-col gap-2">
+                <span>{clusterCanvas.data.degraded ? "Fallback clustering" : "AI clustering"} produced {Object.keys(clusterCanvas.data.groups).length} themes.</span>
+                  <div className="badge-row">
                     {Object.entries(clusterCanvas.data.groups).map(([theme, items]) => (
-                      <Tag key={theme}>{theme}: {items.length}</Tag>
+                      <CodeBadge key={theme}>{theme}: {items.length}</CodeBadge>
                     ))}
-                  </Space>
-                  <Button size="mini" type="primary" onClick={addThemeNodes}>
+                  </div>
+                  <Button size="sm" onClick={addThemeNodes}>
                     Add theme nodes
                   </Button>
-                </Space>
+              </div>
+            </InlineAlert>
+          )}
+          <TextMuted>Click highlights below to add them as nodes.</TextMuted>
+          <div className="list-stack">
+            {(annotations.data ?? []).map((item) => (
+              <button key={item.id} type="button" className="list-row clickable-row" onClick={() => addAnnotationNode(item)}>
+                <strong>{item.text}</strong>
+                <TextMuted>{item.codeIds.length} codes</TextMuted>
+              </button>
+            ))}
+            {!(annotations.data ?? []).length && <EmptyState description="No highlights yet. Code transcript quotes first, then add them to canvas." />}
+          </div>
+        </div>
+      </PanelCard>
+      <Card className="canvas-card transcript-panel">
+        <CardContent>
+          {!activeCanvas && (
+            <EmptyState
+              description="No canvas selected."
+              action={
+                <Button disabled={createCanvas.isPending} onClick={() => createCanvas.mutate()}>
+                  Create canvas
+                </Button>
               }
             />
           )}
-          <Typography.Text type="secondary">Click highlights below to add them as nodes.</Typography.Text>
-          <List
-            dataSource={annotations.data ?? []}
-            render={(item) => (
-              <List.Item key={item.id} className="clickable-row" onClick={() => addAnnotationNode(item)}>
-                <List.Item.Meta title={item.text} description={`${item.codeIds.length} codes`} />
-              </List.Item>
-            )}
-          />
-        </Space>
-      </Card>
-      <Card bordered={false} className="canvas-card transcript-panel">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={(changes) => setNodes((current) => applyNodeChanges(changes, current))}
-          onEdgesChange={(changes) => setEdges((current) => applyEdgeChanges(changes, current))}
-          onConnect={(connection: Connection) => setEdges((current) => addEdge({ ...connection, type: "smoothstep" }, current))}
-          fitView
-        >
-          <Background />
-          <Controls />
-        </ReactFlow>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={(changes) => setNodes((current) => applyNodeChanges(changes, current))}
+            onEdgesChange={(changes) => setEdges((current) => applyEdgeChanges(changes, current))}
+            onConnect={(connection: Connection) => setEdges((current) => addEdge({ ...connection, type: "smoothstep" }, current))}
+            fitView
+          >
+            <Background />
+            <Controls />
+          </ReactFlow>
+        </CardContent>
       </Card>
     </div>
   );

@@ -1,8 +1,13 @@
-import { Button, Card, Empty, Input, List, Message, Space, Tag, Typography } from "@arco-design/web-react";
-import { IconArrowDown, IconArrowUp, IconDelete, IconPlus } from "@arco-design/web-react/icon";
+import { ArrowDownIcon, ArrowUpIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { Outline, OutlineQuestion } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { CodeBadge, EmptyState, PageTitle, PanelCard, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -52,10 +57,10 @@ export function Outlines() {
       });
     },
     onSuccess: () => {
-      Message.success("Outline saved");
+      toast.success("Outline saved");
       void queryClient.invalidateQueries({ queryKey: ["outlines", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   function addQuestion(content = "") {
@@ -76,68 +81,78 @@ export function Outlines() {
     });
   }
 
-  if (!projectId) return <Empty description="Create or select a project first." />;
+  if (!projectId) return <EmptyState description="Create or select a project first." />;
 
   return (
     <div className="page split-page outline-page">
-      <Card className="left-panel" bordered={false}>
-        <Space direction="vertical" className="full-width-space">
-          <Typography.Title heading={4}>Outlines</Typography.Title>
-          <Button icon={<IconPlus />} type="primary" long loading={createOutline.isPending} onClick={() => createOutline.mutate()}>
+      <PanelCard title="Outlines" className="left-panel">
+        <div className="flex flex-col gap-3">
+          <Button disabled={createOutline.isPending} onClick={() => createOutline.mutate()}>
+            <PlusIcon data-icon="inline-start" />
             New outline
           </Button>
-          <List
-            dataSource={outlines.data ?? []}
-            render={(item) => (
-              <List.Item key={item.id} className={item.id === activeOutline?.id ? "active-row" : ""} onClick={() => setActiveId(item.id)}>
-                <List.Item.Meta title={item.name} description={`${item.questions.length} questions`} />
-              </List.Item>
-            )}
-          />
-        </Space>
-      </Card>
-      <Card className="transcript-panel" bordered={false}>
+          <div className="list-stack">
+            {(outlines.data ?? []).map((item) => (
+              <button key={item.id} type="button" className={`list-row clickable-row ${item.id === activeOutline?.id ? "active-row" : ""}`} onClick={() => setActiveId(item.id)}>
+                <strong>{item.name}</strong>
+                <TextMuted>{item.questions.length} questions</TextMuted>
+              </button>
+            ))}
+          </div>
+        </div>
+      </PanelCard>
+      <PanelCard className="transcript-panel">
         {activeOutline ? (
-          <Space direction="vertical" className="full-width-space" size={16}>
-            <Space className="toolbar">
-              <Input value={draftName} onChange={setDraftName} style={{ width: 280 }} />
-              <Button icon={<IconPlus />} onClick={() => addQuestion()}>
+          <div className="flex flex-col gap-4">
+            <PageTitle title="Interview outline" />
+            <div className="toolbar">
+              <Input className="w-[280px]" value={draftName} onChange={(event) => setDraftName(event.target.value)} />
+              <Button variant="outline" onClick={() => addQuestion()}>
+                <PlusIcon data-icon="inline-start" />
                 Add question
               </Button>
-              <Button type="primary" loading={saveQuestions.isPending} onClick={() => saveQuestions.mutate()}>
+              <Button disabled={saveQuestions.isPending} onClick={() => saveQuestions.mutate()}>
                 Save questions
               </Button>
-            </Space>
+            </div>
             {questions.map((question, index) => (
               <div className="outline-question" key={question.id ?? `${question.content}-${index}`}>
-                <Tag color="arcoblue">Q{index + 1}</Tag>
-                <Input.TextArea
-                  autoSize
+                <CodeBadge tone="blue">Q{index + 1}</CodeBadge>
+                <Textarea
                   value={question.content}
-                  onChange={(content) => setQuestions((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, content } : item)))}
+                  onChange={(event) => setQuestions((items) => items.map((item, itemIndex) => (itemIndex === index ? { ...item, content: event.target.value } : item)))}
                 />
-                <Space>
-                  <Button icon={<IconArrowUp />} disabled={index === 0} onClick={() => moveQuestion(index, -1)} />
-                  <Button icon={<IconArrowDown />} disabled={index === questions.length - 1} onClick={() => moveQuestion(index, 1)} />
-                  <Button status="danger" icon={<IconDelete />} onClick={() => setQuestions((items) => items.filter((_, itemIndex) => itemIndex !== index))} />
-                </Space>
+                <div className="code-actions">
+                  <Button size="icon-sm" variant="ghost" disabled={index === 0} onClick={() => moveQuestion(index, -1)}><ArrowUpIcon /></Button>
+                  <Button size="icon-sm" variant="ghost" disabled={index === questions.length - 1} onClick={() => moveQuestion(index, 1)}><ArrowDownIcon /></Button>
+                  <Button size="icon-sm" variant="destructive" onClick={() => setQuestions((items) => items.filter((_, itemIndex) => itemIndex !== index))}><TrashIcon /></Button>
+                </div>
               </div>
             ))}
-          </Space>
+          </div>
         ) : (
-          <Empty description="No outlines yet." />
+          <EmptyState
+            description="No outlines yet."
+            action={
+              <Button onClick={() => createOutline.mutate()} disabled={createOutline.isPending}>
+                Create outline
+              </Button>
+            }
+          />
         )}
-      </Card>
-      <Card className="right-panel" bordered={false}>
-        <Typography.Title heading={4}>Question library</Typography.Title>
-        <Space direction="vertical" className="full-width-space">
+      </PanelCard>
+      <PanelCard title="Question library" className="right-panel">
+        <div className="flex flex-col gap-2">
+          <Button variant="outline" render={<Link to="/interviews" />}>
+            Use in interviews
+          </Button>
           {questionLibrary.map((question) => (
-            <Button key={question} long onClick={() => addQuestion(question)}>
+            <Button key={question} variant="outline" className="h-auto justify-start whitespace-normal py-2 text-left" onClick={() => addQuestion(question)}>
               {question}
             </Button>
           ))}
-        </Space>
-      </Card>
+        </div>
+      </PanelCard>
     </div>
   );
 }

@@ -1,8 +1,11 @@
-import { Card, Empty, Input, List, Select, Space, Tag, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { Annotation, Code, Interview } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { CodeBadge, EmptyState, OptionSelect, PageTitle, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -50,60 +53,61 @@ export function Highlights() {
     });
   }, [annotations.data, codeId, keyword, speaker]);
 
-  if (!projectId) return <Empty description="Create or select a project first." />;
+  if (!projectId) return <EmptyState description="Create or select a project first." />;
 
   return (
     <div className="page">
-      <Typography.Title heading={3}>Highlights</Typography.Title>
-      <Card bordered={false}>
-        <Space direction="vertical" className="full-width-space">
-          <Space wrap>
-            <Input.Search placeholder="Filter highlights or context" value={keyword} onChange={setKeyword} allowClear style={{ width: 280 }} />
-            <Select
+      <PageTitle title="Highlights" description="Review coded evidence with transcript context." />
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <div className="toolbar">
+            <Input className="w-[280px]" placeholder="Filter highlights or context" value={keyword} onChange={(event) => setKeyword(event.target.value)} />
+            <OptionSelect
               placeholder="Code"
               allowClear
               value={codeId}
               onChange={setCodeId}
               options={(codes.data ?? []).map((code) => ({ label: code.name, value: code.id }))}
-              style={{ width: 200 }}
+              className="w-[200px]"
             />
-            <Select
+            <OptionSelect
               placeholder="Speaker"
               allowClear
               value={speaker}
               onChange={setSpeaker}
               options={speakers.map((item) => ({ label: item, value: item }))}
-              style={{ width: 180 }}
+              className="w-[180px]"
             />
-          </Space>
-          <List
-            dataSource={filtered}
-            render={(item) => (
-              <List.Item key={item.id} className="clickable-row" onClick={() => navigate("/interviews")}>
-                <List.Item.Meta
-                  title={item.text}
-                  description={
-                    <Space direction="vertical" size={4}>
-                      <Typography.Text type="secondary">
-                        {item.paragraphs?.speaker ?? "Speaker"} · {item.paragraphs?.startTime ?? ""} · Codes: {item.codeIds.length} · {new Date(item.createdAt).toLocaleString()}
-                      </Typography.Text>
-                      <Typography.Text type="secondary" ellipsis={{ rows: 2 }}>
-                        {item.paragraphs?.text ?? "No context available"}
-                      </Typography.Text>
-                      <Space wrap>
-                        {item.codeIds.map((id) => {
-                          const code = codes.data?.find((candidate) => candidate.id === id);
-                          return <Tag key={id}>{code?.name ?? id}</Tag>;
-                        })}
-                        {interviews.data?.[0] && <Tag color="arcoblue">{interviews.data[0].name}</Tag>}
-                      </Space>
-                    </Space>
-                  }
-                />
-              </List.Item>
+          </div>
+          <div className="list-stack">
+            {filtered.map((item) => (
+              <button key={item.id} type="button" className="list-row clickable-row" onClick={() => navigate("/interviews")}>
+                <strong>{item.text}</strong>
+                <TextMuted>
+                  {item.paragraphs?.speaker ?? "Speaker"} · {item.paragraphs?.startTime ?? ""} · Codes: {item.codeIds.length} · {new Date(item.createdAt).toLocaleString()}
+                </TextMuted>
+                <TextMuted className="line-clamp-2">{item.paragraphs?.text ?? "No context available"}</TextMuted>
+                <div className="badge-row">
+                  {item.codeIds.map((id) => {
+                    const code = codes.data?.find((candidate) => candidate.id === id);
+                    return <CodeBadge key={id}>{code?.name ?? id}</CodeBadge>;
+                  })}
+                  {interviews.data?.[0] && <CodeBadge tone="blue">{interviews.data[0].name}</CodeBadge>}
+                </div>
+              </button>
+            ))}
+            {!filtered.length && (
+              <EmptyState
+                description="No highlights match the current filters."
+                action={
+                  <Button variant="outline" render={<Link to="/workspace" />}>
+                    Open Workspace
+                  </Button>
+                }
+              />
             )}
-          />
-        </Space>
+          </div>
+        </CardContent>
       </Card>
     </div>
   );

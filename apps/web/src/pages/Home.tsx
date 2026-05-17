@@ -1,7 +1,9 @@
-import { Alert, Button, Card, Empty, Grid, Statistic, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import type { Annotation, Code, Interview } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, InlineAlert, PageTitle } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -27,7 +29,7 @@ export function Home() {
   if (!projectId) {
     return (
       <div className="page">
-        <Empty description="Create or select a project from the sidebar to begin." />
+        <EmptyState description="Create or select a project from the sidebar to begin." />
       </div>
     );
   }
@@ -36,28 +38,34 @@ export function Home() {
 
   return (
     <div className="page">
-      <Typography.Title heading={3}>Research workspace</Typography.Title>
-      <Button className="page-action" type="primary">
-        <Link to="/workspace">Open Analysis Workspace</Link>
-      </Button>
-      {error && <Alert className="page-alert" type="error" content={error.message} />}
-      <Grid.Row gutter={16}>
-        <Grid.Col span={8}>
-          <Card bordered={false}>
-            <Statistic title="Interviews" value={interviews.data?.length ?? 0} />
-          </Card>
-        </Grid.Col>
-        <Grid.Col span={8}>
-          <Card bordered={false}>
-            <Statistic title="Codes" value={codes.data?.length ?? 0} />
-          </Card>
-        </Grid.Col>
-        <Grid.Col span={8}>
-          <Card bordered={false}>
-            <Statistic title="Highlights" value={annotations.data?.length ?? 0} />
-          </Card>
-        </Grid.Col>
-      </Grid.Row>
+      <PageTitle
+        title="Research workspace"
+        description="A compact overview of interviews, codes, and saved evidence."
+        action={
+          <Button render={<Link to="/workspace" />}>
+            Open Analysis Workspace
+          </Button>
+        }
+      />
+      {error && <InlineAlert variant="destructive">{error.message}</InlineAlert>}
+      <div className="stat-grid">
+        <StatCard title="Interviews" value={interviews.data?.length ?? 0} />
+        <StatCard title="Codes" value={codes.data?.length ?? 0} />
+        <StatCard title="Highlights" value={annotations.data?.length ?? 0} />
+      </div>
     </div>
+  );
+}
+
+function StatCard({ title, value }: { title: string; value: number }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-muted-foreground">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="stat-value">{value}</div>
+      </CardContent>
+    </Card>
   );
 }

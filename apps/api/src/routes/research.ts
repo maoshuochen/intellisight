@@ -4,11 +4,13 @@ import {
   createCodeGroupSchema,
   createCodeSchema,
   createInterviewSchema,
+  importTranscriptSchema,
   updateCodeGroupSchema,
   updateCodeSchema,
   uuidSchema
 } from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
+import { parseTranscript } from "../services/transcriptImport.js";
 import { toCamel, toSnake } from "../utils/case.js";
 
 export const researchRoutes: FastifyPluginAsync = async (app) => {
@@ -58,6 +60,46 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
     if (paragraphError) throw paragraphError;
 
     return reply.code(201).send(toCamel(interview));
+  });
+
+  app.post("/interviews/import", async (request, reply) => {
+    const body = importTranscriptSchema.parse(request.body);
+    await assertProjectRole(app, request.user.id, body.projectId, ["owner", "editor"]);
+    const paragraphs = parseTranscript(body.transcript);
+    if (!paragraphs.length) {
+      const err = new Error("Transcript did not contain any importable paragraphs");
+      err.name = "BadRequestError";
+      throw err;
+    }
+
+    const { data: interview, error } = await app.supabase
+      .from("interviews")
+      .insert({
+        project_id: body.projectId,
+        name: body.name,
+        sample: body.sample ?? "Imported transcript",
+        owner: request.user.email ?? null,
+        length: null,
+        participant_name: body.participantName ?? null
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    const { error: paragraphError } = await app.supabase.from("paragraphs").insert(
+      paragraphs.map((paragraph, index) => ({
+        project_id: body.projectId,
+        interview_id: interview.id,
+        text: paragraph.text,
+        speaker: paragraph.speaker ?? null,
+        start_time: paragraph.startTime ?? null,
+        end_time: null,
+        sort_order: index + 1
+      }))
+    );
+    if (paragraphError) throw paragraphError;
+
+    return reply.code(201).send(toCamel({ ...interview, paragraph_count: paragraphs.length }));
   });
 
   app.get("/interviews/:id/paragraphs", async (request) => {
@@ -173,8 +215,9 @@ export const researchRoutes: FastifyPluginAsync = async (app) => {
         project_id: body.projectId,
         code_group_id: body.codeGroupId,
         name: body.name,
+        definition: body.definition ?? null,
         owner: body.owner ?? request.user.email ?? null
-      })
+      } as any)
       .select("*")
       .single();
     if (error) throw error;

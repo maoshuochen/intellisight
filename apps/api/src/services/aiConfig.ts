@@ -31,3 +31,15 @@ export function canUseAiModel() {
   const config = getAiConfig();
   return Boolean(config.enabled && config.apiKey);
 }
+
+export function aiStatusFromConfig(config: AiProviderConfig) {
+  return {
+    enabled: config.enabled,
+    provider: "openai-compatible",
+    model: config.enabled && config.apiKey ? config.model : null,
+    apiBase: config.apiBase,
+    configured: Boolean(config.enabled && config.apiKey),
+    apiKeyConfigured: Boolean(config.apiKey),
+    source: config.source
+  };
+}

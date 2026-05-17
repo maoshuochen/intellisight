@@ -1,7 +1,12 @@
-import { Alert, Button, Card, Empty, Input, List, Message, Select, Space, Tag, Tooltip, Typography } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { Code, CodeGroup, Interview, Paragraph, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { CodeBadge, EmptyState, InlineAlert, OptionSelect, PanelCard, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
 
@@ -14,6 +19,8 @@ export function Interviews() {
   const [selectedCodeIds, setSelectedCodeIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [speaker, setSpeaker] = useState<string | undefined>();
+  const [importName, setImportName] = useState("Imported interview");
+  const [importTranscript, setImportTranscript] = useState("");
   const queryClient = useQueryClient();
   const enabled = Boolean(projectId);
 
@@ -51,7 +58,7 @@ export function Interviews() {
   });
   const improveText = useMutation({
     mutationFn: (mode: "correct" | "simplify") => api.post<TextImproveResponse>("/ai/text/improve", { projectId, text: selectedText, mode }),
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const createCode = useMutation({
     mutationFn: (name: string) =>
@@ -64,7 +71,7 @@ export function Interviews() {
       setSelectedCodeIds((ids) => (ids.includes(code.id) ? ids : [...ids, code.id]));
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
   const createDemoInterview = useMutation({
     mutationFn: () =>
@@ -96,7 +103,22 @@ export function Interviews() {
       setSelectedInterviewId(interview.id);
       void queryClient.invalidateQueries({ queryKey: ["interviews", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
+  });
+  const importInterview = useMutation({
+    mutationFn: () =>
+      api.post<Interview & { paragraphCount?: number }>("/interviews/import", {
+        projectId,
+        name: importName,
+        transcript: importTranscript
+      }),
+    onSuccess: (interview) => {
+      toast.success(`Imported ${interview.paragraphCount ?? "transcript"} paragraphs`);
+      setSelectedInterviewId(interview.id);
+      setImportTranscript("");
+      void queryClient.invalidateQueries({ queryKey: ["interviews", projectId] });
+    },
+    onError: (error) => toast.error(error.message)
   });
   const saveAnnotation = useMutation({
     mutationFn: () =>
@@ -107,15 +129,15 @@ export function Interviews() {
         startOffset: selectionOffsets.start,
         endOffset: selectionOffsets.end,
         codeIds: selectedCodeIds
-      }),
+    }),
     onSuccess: () => {
-      Message.success("Annotation saved");
+      toast.success("Annotation saved");
       setSelectedText("");
       setSelectedCodeIds([]);
       void queryClient.invalidateQueries({ queryKey: ["annotations", projectId] });
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
-    onError: (error) => Message.error(error.message)
+    onError: (error) => toast.error(error.message)
   });
 
   const codeMap = useMemo(() => new Map((codes.data ?? []).map((code) => [code.id, code])), [codes.data]);
@@ -134,7 +156,7 @@ export function Interviews() {
 
   useEffect(() => {
     for (const result of [interviews, paragraphs, codes, codeGroups]) {
-      if (result.error) Message.error(result.error.message);
+      if (result.error) toast.error(result.error.message);
     }
   }, [codeGroups, codes, interviews, paragraphs]);
 
@@ -153,47 +175,61 @@ export function Interviews() {
   if (!projectId) {
     return (
       <div className="page">
-        <Empty description="Create or select a project first." />
+        <EmptyState description="Create or select a project first." />
       </div>
     );
   }
 
   return (
     <div className="page split-page">
-      <Card className="left-panel" bordered={false}>
-        <Typography.Title heading={4}>Interviews</Typography.Title>
-        {(interviews.data ?? []).length ? (
-          <List
-            dataSource={interviews.data ?? []}
-            render={(item) => (
-              <List.Item key={item.id} className={item.id === activeInterviewId ? "active-row" : ""} onClick={() => setSelectedInterviewId(item.id)}>
-                <List.Item.Meta title={item.name} description={item.participantName ?? item.sample ?? "Transcript"} />
-              </List.Item>
-            )}
+      <PanelCard title="Interviews" className="left-panel">
+        <div className="import-panel">
+          <Input value={importName} onChange={(event) => setImportName(event.target.value)} placeholder="Interview name" />
+          <Textarea
+            className="min-h-28"
+            value={importTranscript}
+            onChange={(event) => setImportTranscript(event.target.value)}
+            placeholder={"Paste transcript, e.g.\nResearcher 00:00: How do you work?\nParticipant 00:10: I start by..."}
           />
+          <Button disabled={!importName.trim() || !importTranscript.trim() || importInterview.isPending} onClick={() => importInterview.mutate()}>
+            Import transcript
+          </Button>
+        </div>
+        {(interviews.data ?? []).length ? (
+          <div className="list-stack">
+            {(interviews.data ?? []).map((item) => (
+              <button key={item.id} type="button" className={`list-row clickable-row ${item.id === activeInterviewId ? "active-row" : ""}`} onClick={() => setSelectedInterviewId(item.id)}>
+                <strong>{item.name}</strong>
+                <TextMuted>{item.participantName ?? item.sample ?? "Transcript"}</TextMuted>
+              </button>
+            ))}
+          </div>
         ) : (
           <div className="empty-action">
-            <Empty description="No interviews yet." />
-            <Button type="primary" loading={createDemoInterview.isPending} onClick={() => createDemoInterview.mutate()}>
-              Create demo interview
-            </Button>
+            <EmptyState
+              description="No interviews yet."
+              action={
+                <Button disabled={createDemoInterview.isPending} onClick={() => createDemoInterview.mutate()}>
+                  Create demo interview
+                </Button>
+              }
+            />
           </div>
         )}
-      </Card>
-      <Card className="transcript-panel" bordered={false}>
-        <Space direction="vertical" size={16} className="full-width-space">
-          <Typography.Title heading={4}>Transcript coding</Typography.Title>
-          <Space wrap>
-            <Input.Search placeholder="Search transcript" value={query} onChange={setQuery} allowClear style={{ width: 280 }} />
-            <Select
+      </PanelCard>
+      <PanelCard title="Transcript coding" className="transcript-panel">
+        <div className="flex flex-col gap-4">
+          <div className="toolbar">
+            <Input className="w-[280px]" placeholder="Search transcript" value={query} onChange={(event) => setQuery(event.target.value)} />
+            <OptionSelect
               placeholder="Speaker"
               allowClear
               value={speaker}
               onChange={setSpeaker}
-              style={{ width: 180 }}
               options={speakers.map((item) => ({ label: item, value: item }))}
+              className="w-[180px]"
             />
-          </Space>
+          </div>
           <div className="paragraph-list">
             {filteredParagraphs.map((paragraph) => (
               <article className="paragraph" key={paragraph.id} onMouseUp={() => captureSelection(paragraph)}>
@@ -204,77 +240,84 @@ export function Interviews() {
                 <p>{paragraph.text}</p>
               </article>
             ))}
-            {!filteredParagraphs.length && <Empty description="No transcript paragraphs match the current filters." />}
-          </div>
-        </Space>
-      </Card>
-      <Card className="right-panel" bordered={false}>
-        <Typography.Title heading={4}>AI coding</Typography.Title>
-        {selectedText ? (
-          <Space direction="vertical" className="full-width-space">
-            <Typography.Paragraph ellipsis={{ rows: 4, expandable: true }}>{selectedText}</Typography.Paragraph>
-            {recommendations.data?.degraded && <Alert type="warning" content="AI provider is unavailable. Showing rule-based fallback recommendations." />}
-            <Space>
-              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("correct")}>
-                Correct text
-              </Button>
-              <Button size="small" loading={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
-                Simplify
-              </Button>
-            </Space>
-            {improveText.data && (
-              <Alert
-                type={improveText.data.degraded ? "warning" : "info"}
-                content={
-                  <Space direction="vertical" className="full-width-space">
-                    <Typography.Text>{improveText.data.text}</Typography.Text>
-                    <Typography.Text type="secondary">{improveText.data.reason}</Typography.Text>
-                    <Button size="mini" type="primary" onClick={() => setSelectedText(improveText.data.text)}>
-                      Use this text
-                    </Button>
-                  </Space>
+            {!filteredParagraphs.length && (
+              <EmptyState
+                description="No transcript paragraphs match the current filters."
+                action={
+                  !(interviews.data ?? []).length ? (
+                    <div className="flex gap-2">
+                      <Button disabled={createDemoInterview.isPending} onClick={() => createDemoInterview.mutate()}>
+                        Create demo interview
+                      </Button>
+                    </div>
+                  ) : undefined
                 }
               />
             )}
-            <Typography.Text type="secondary">Selected codes</Typography.Text>
-            <Space wrap>
+          </div>
+        </div>
+      </PanelCard>
+      <PanelCard title="AI coding" className="right-panel">
+        {selectedText ? (
+          <div className="flex flex-col gap-4">
+            <p className="quote-preview">{selectedText}</p>
+            {recommendations.data?.degraded && <InlineAlert>AI provider is unavailable. Showing rule-based fallback recommendations.</InlineAlert>}
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("correct")}>
+                Correct text
+              </Button>
+              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
+                Simplify
+              </Button>
+            </div>
+            {improveText.data && (
+              <InlineAlert>
+                <div className="flex flex-col gap-2">
+                  <span>{improveText.data.text}</span>
+                  <TextMuted>{improveText.data.reason}</TextMuted>
+                  <Button size="sm" onClick={() => setSelectedText(improveText.data.text)}>Use this text</Button>
+                </div>
+              </InlineAlert>
+            )}
+            <TextMuted>Selected codes</TextMuted>
+            <div className="badge-row">
               {selectedCodeIds.map((id) => (
-                <Tag key={id} closable onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
+                <CodeBadge key={id} onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
                   {codeMap.get(id)?.name ?? id}
-                </Tag>
+                </CodeBadge>
               ))}
-            </Space>
-            <Typography.Text type="secondary">Recommendations</Typography.Text>
-            <Space wrap>
-              {recommendations.isPending && <Tag>Loading recommendations...</Tag>}
+            </div>
+            <TextMuted>Recommendations</TextMuted>
+            <div className="badge-row">
+              {recommendations.isPending && <CodeBadge tone="gray">Loading recommendations...</CodeBadge>}
               {(recommendations.data?.recommendations ?? []).map((item) => (
-                <Tooltip key={item.id ?? item.label} content={`${Math.round(item.score * 100)}% · ${item.reason}`}>
-                  <Tag
-                    color={selectedCodeIds.includes(item.id ?? "") ? "arcoblue" : "gray"}
-                    onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}
-                  >
-                    {item.label}
-                  </Tag>
+                <Tooltip key={item.id ?? item.label}>
+                  <TooltipTrigger>
+                    <CodeBadge selected={selectedCodeIds.includes(item.id ?? "")} tone="gray" onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}>
+                      {item.label}
+                    </CodeBadge>
+                  </TooltipTrigger>
+                  <TooltipContent>{Math.round(item.score * 100)}% · {item.reason}</TooltipContent>
                 </Tooltip>
               ))}
-            </Space>
-            <Typography.Text type="secondary">New code candidates</Typography.Text>
-            <Space wrap>
-              {keywords.isPending && <Tag>Extracting keywords...</Tag>}
+            </div>
+            <TextMuted>New code candidates</TextMuted>
+            <div className="badge-row">
+              {keywords.isPending && <CodeBadge tone="gray">Extracting keywords...</CodeBadge>}
               {(keywords.data?.keywords ?? []).map((keyword) => (
-                <Tag key={keyword} color="green" onClick={() => createCode.mutate(keyword)}>
+                <CodeBadge key={keyword} tone="green" onClick={() => createCode.mutate(keyword)}>
                   + {keyword}
-                </Tag>
+                </CodeBadge>
               ))}
-            </Space>
-            <Button type="primary" disabled={!selectedParagraphId || !selectedCodeIds.length} loading={saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
+            </div>
+            <Button disabled={!selectedParagraphId || !selectedCodeIds.length || saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
               Save annotation
             </Button>
-          </Space>
+          </div>
         ) : (
-          <Typography.Text type="secondary">Select text in the transcript to get code recommendations.</Typography.Text>
+          <TextMuted>Select text in the transcript to get code recommendations.</TextMuted>
         )}
-      </Card>
+      </PanelCard>
     </div>
   );
 }
