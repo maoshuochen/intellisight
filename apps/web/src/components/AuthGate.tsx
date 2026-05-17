@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { LoadingBlock } from "@/components/ui/app-kit";
+import { env } from "../lib/env";
 import { supabase } from "../lib/supabase";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
@@ -15,6 +16,10 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const [password, setPassword] = useState("");
 
   useEffect(() => {
+    if (env.demoMode) {
+      setLoading(false);
+      return;
+    }
     void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setLoading(false);
@@ -39,6 +44,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) return <LoadingBlock />;
+  if (env.demoMode) return children;
   if (session) return children;
 
   return (

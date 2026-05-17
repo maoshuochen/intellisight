@@ -13,6 +13,7 @@
     "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "test": "npm run test -w apps/api",
     "smoke:web": "node scripts/smoke-web.mjs",
+    "pages:build": "npm run build -w packages/shared && GITHUB_PAGES=true VITE_DEMO_MODE=true VITE_API_BASE_URL=demo://local VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run build -w apps/web && cp apps/web/dist/index.html apps/web/dist/404.html && touch apps/web/dist/.nojekyll",
     "lint": "npm run lint -w apps/web",
     "db:types": "supabase gen types typescript --project-id \"$SUPABASE_PROJECT_ID\" > packages/shared/src/database.types.ts",
     "migrate:sqlite": "tsx scripts/migrate-sqlite-to-supabase.ts",

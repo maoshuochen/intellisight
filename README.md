@@ -25,6 +25,7 @@ Create a hosted Supabase project, then run the SQL files in `supabase/migrations
 2. `002_fix_project_rls_policies.sql`
 3. `003_remove_recursive_project_member_policies.sql`
 4. `004_reporting_and_query_indexes.sql`
+5. `005_import_ai_settings_code_memo.sql`
 
 Copy environment files:
 
@@ -50,6 +51,22 @@ npm run dev
 ```
 
 The API runs on `http://localhost:5000` by default; the web app runs on `http://localhost:3000`. If macOS is using port 5000, set `PORT=5050` in `apps/api/.env` and `VITE_API_BASE_URL=http://localhost:5050/api` in `apps/web/.env`.
+
+## GitHub Pages Demo
+
+GitHub Pages is published as a static demo build at:
+
+```txt
+https://maoshuochen.github.io/intellisight/
+```
+
+The Pages build uses `VITE_DEMO_MODE=true`, skips Supabase login, and stores demo data in browser `localStorage`. It is meant for remote product trial and UI review; the full Supabase + Fastify stack is still the source of truth for local development and production-style testing.
+
+Build the same static demo locally:
+
+```sh
+npm run pages:build
+```
 
 ## Legacy SQLite Migration
 

@@ -626,6 +626,174 @@ button.code-badge {
   }
 }
 
+@media (max-width: 760px) {
+  .app-shell {
+    display: block;
+    min-height: 100vh;
+  }
+
+  .app-sider {
+    position: relative;
+    top: auto;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    height: 48px;
+    padding: 0 16px;
+  }
+
+  .brand-title {
+    font-size: 17px;
+  }
+
+  .project-switcher {
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .project-switcher [data-slot="select-trigger"],
+  .project-switcher button {
+    width: 100%;
+  }
+
+  .nav-menu {
+    flex-direction: row;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 8px 12px 12px;
+    scrollbar-width: none;
+  }
+
+  .nav-menu::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    min-width: max-content;
+    min-height: 34px;
+    padding: 0 10px;
+  }
+
+  .page {
+    padding: 16px;
+  }
+
+  .page-title {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .page-title h1 {
+    font-size: 24px;
+  }
+
+  .page-title > div:last-child,
+  .page-title button,
+  .page-title a {
+    width: 100%;
+  }
+
+  .toolbar {
+    align-items: stretch;
+  }
+
+  .toolbar > *,
+  .toolbar [data-slot="input"],
+  .toolbar [data-slot="select-trigger"],
+  .toolbar button {
+    width: 100% !important;
+  }
+
+  .stat-grid,
+  .code-board {
+    grid-template-columns: 1fr;
+  }
+
+  .split-page {
+    gap: 12px;
+    min-height: auto;
+  }
+
+  .paragraph-list {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .paragraph {
+    padding: 12px;
+  }
+
+  .paragraph-meta,
+  .code-column-header,
+  .code-card,
+  .coding-popover-actions {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .outline-question {
+    grid-template-columns: 1fr;
+  }
+
+  .code-edit-form {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .analysis-workspace {
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .workspace-main {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .workspace-scroll {
+    max-height: none;
+  }
+
+  .workspace-canvas,
+  .canvas-card {
+    height: 420px;
+    min-height: 360px;
+  }
+
+  .settings-grid,
+  .setting-item {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .setting-item {
+    padding: 10px 0;
+  }
+
+  .coding-popover {
+    top: auto !important;
+    bottom: 12px;
+    left: 50% !important;
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    transform: translateX(-50%);
+  }
+
+  .coding-popover::before {
+    display: none;
+  }
+
+  .login-screen {
+    padding: 16px;
+  }
+}
+
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: 'Geist Variable', sans-serif;

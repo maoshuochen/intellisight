@@ -1,7 +1,9 @@
 import { supabase } from "./supabase";
+import { demoRequest } from "./demoApi";
 import { env } from "./env";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (env.demoMode) return demoRequest<T>(path, init);
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   const response = await fetch(`${env.apiBaseUrl}${path}`, {
