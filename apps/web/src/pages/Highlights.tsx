@@ -100,8 +100,8 @@ export function Highlights() {
               <EmptyState
                 description="No highlights match the current filters."
                 action={
-                  <Button variant="outline" render={<Link to="/workspace" />}>
-                    Open Workspace
+                  <Button variant="outline" render={<Link to="/interviews" />}>
+                    Open Interviews
                   </Button>
                 }
               />

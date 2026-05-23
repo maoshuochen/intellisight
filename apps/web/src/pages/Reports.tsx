@@ -129,7 +129,7 @@ export function Reports() {
           <CodeBadge tone="green">{codes.data?.length ?? 0} codes</CodeBadge>
           <TextMuted>Reports stay lightweight: generated from saved highlights, code usage, and transcript context.</TextMuted>
           {!(annotations.data ?? []).length && (
-            <Button variant="outline" render={<Link to="/workspace" />}>
+            <Button variant="outline" render={<Link to="/interviews" />}>
               Collect highlights
             </Button>
           )}

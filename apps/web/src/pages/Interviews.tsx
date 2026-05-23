@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import type { Code, CodeGroup, Interview, Paragraph, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
+import type { Annotation, Code, CodeGroup, Interview, Paragraph, RecommendCodesResponse, TextImproveResponse } from "@intellisight/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,21 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { CodeBadge, EmptyState, InlineAlert, OptionSelect, PanelCard, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
+
+type HighlightAnnotation = Annotation & {
+  paragraphs?: {
+    speaker?: string | null;
+    startTime?: string | null;
+    endTime?: string | null;
+    text?: string;
+  };
+};
+
+type PopoverPosition = {
+  left: number;
+  top: number;
+  placement: "above" | "below";
+};
 
 export function Interviews() {
   const projectId = useAppStore((state) => state.projectId);
@@ -21,6 +36,7 @@ export function Interviews() {
   const [speaker, setSpeaker] = useState<string | undefined>();
   const [importName, setImportName] = useState("Imported interview");
   const [importTranscript, setImportTranscript] = useState("");
+  const [popoverPosition, setPopoverPosition] = useState<PopoverPosition | null>(null);
   const queryClient = useQueryClient();
   const enabled = Boolean(projectId);
 
@@ -44,6 +60,11 @@ export function Interviews() {
     queryKey: ["code-groups", projectId],
     enabled,
     queryFn: () => api.get<CodeGroup[]>(`/code-groups?projectId=${projectId}`)
+  });
+  const annotations = useQuery({
+    queryKey: ["annotations", projectId],
+    enabled,
+    queryFn: () => api.get<HighlightAnnotation[]>(`/annotations?projectId=${projectId}`)
   });
   const recommendations = useMutation({
     mutationFn: (text: string) =>
@@ -134,6 +155,7 @@ export function Interviews() {
       toast.success("Annotation saved");
       setSelectedText("");
       setSelectedCodeIds([]);
+      setPopoverPosition(null);
       void queryClient.invalidateQueries({ queryKey: ["annotations", projectId] });
       void queryClient.invalidateQueries({ queryKey: ["codes", projectId] });
     },
@@ -141,9 +163,15 @@ export function Interviews() {
   });
 
   const codeMap = useMemo(() => new Map((codes.data ?? []).map((code) => [code.id, code])), [codes.data]);
+  const codeToneMap = useMemo(() => new Map((codeGroups.data ?? []).map((group) => [group.id, group.color])), [codeGroups.data]);
   const speakers = useMemo(
     () => [...new Set((paragraphs.data ?? []).map((paragraph) => paragraph.speaker).filter((item): item is string => Boolean(item)))],
     [paragraphs.data]
+  );
+  const activeParagraphIds = useMemo(() => new Set((paragraphs.data ?? []).map((paragraph) => paragraph.id)), [paragraphs.data]);
+  const activeAnnotations = useMemo(
+    () => (annotations.data ?? []).filter((annotation) => activeParagraphIds.has(annotation.paragraphId)),
+    [activeParagraphIds, annotations.data]
   );
   const filteredParagraphs = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -155,15 +183,29 @@ export function Interviews() {
   }, [paragraphs.data, query, speaker]);
 
   useEffect(() => {
-    for (const result of [interviews, paragraphs, codes, codeGroups]) {
+    for (const result of [interviews, paragraphs, codes, codeGroups, annotations]) {
       if (result.error) toast.error(result.error.message);
     }
-  }, [codeGroups, codes, interviews, paragraphs]);
+  }, [annotations, codeGroups, codes, interviews, paragraphs]);
 
   function captureSelection(paragraph: Paragraph) {
-    const text = window.getSelection()?.toString().trim() ?? "";
+    const selection = window.getSelection();
+    const text = selection?.toString().trim() ?? "";
     if (!text) return;
     const start = paragraph.text.indexOf(text);
+    const rect = selection?.rangeCount ? selection.getRangeAt(0).getBoundingClientRect() : null;
+    if (rect) {
+      const width = 390;
+      const estimatedHeight = 420;
+      const left = Math.min(Math.max(rect.left + rect.width / 2, width / 2 + 12), window.innerWidth - width / 2 - 12);
+      const belowTop = rect.bottom + 12;
+      const shouldPlaceAbove = belowTop + estimatedHeight > window.innerHeight && rect.top > estimatedHeight + 24;
+      setPopoverPosition({
+        left,
+        top: shouldPlaceAbove ? rect.top - 12 : Math.min(belowTop, Math.max(12, window.innerHeight - estimatedHeight - 12)),
+        placement: shouldPlaceAbove ? "above" : "below"
+      });
+    }
     setSelectedParagraphId(paragraph.id);
     setSelectedText(text);
     setSelectionOffsets({ start: Math.max(0, start), end: Math.max(0, start) + text.length });
@@ -257,67 +299,103 @@ export function Interviews() {
           </div>
         </div>
       </PanelCard>
-      <PanelCard title="AI coding" className="right-panel">
-        {selectedText ? (
-          <div className="flex flex-col gap-4">
-            <p className="quote-preview">{selectedText}</p>
-            {recommendations.data?.degraded && <InlineAlert>AI provider is unavailable. Showing rule-based fallback recommendations.</InlineAlert>}
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("correct")}>
-                Correct text
-              </Button>
-              <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
-                Simplify
-              </Button>
-            </div>
-            {improveText.data && (
-              <InlineAlert>
-                <div className="flex flex-col gap-2">
-                  <span>{improveText.data.text}</span>
-                  <TextMuted>{improveText.data.reason}</TextMuted>
-                  <Button size="sm" onClick={() => setSelectedText(improveText.data.text)}>Use this text</Button>
-                </div>
-              </InlineAlert>
-            )}
-            <TextMuted>Selected codes</TextMuted>
-            <div className="badge-row">
-              {selectedCodeIds.map((id) => (
-                <CodeBadge key={id} onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
-                  {codeMap.get(id)?.name ?? id}
-                </CodeBadge>
-              ))}
-            </div>
-            <TextMuted>Recommendations</TextMuted>
-            <div className="badge-row">
-              {recommendations.isPending && <CodeBadge tone="gray">Loading recommendations...</CodeBadge>}
-              {(recommendations.data?.recommendations ?? []).map((item) => (
-                <Tooltip key={item.id ?? item.label}>
-                  <TooltipTrigger>
-                    <CodeBadge selected={selectedCodeIds.includes(item.id ?? "")} tone="gray" onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}>
-                      {item.label}
+      <PanelCard title="Coded contents" description="Saved codes stay aligned with transcript context." className="right-panel coded-sidebar">
+        <div className="coded-content-list">
+          {activeAnnotations.map((annotation) => (
+            <article className="coded-content-card" key={annotation.id}>
+              <div className="coded-content-meta">
+                <span>{annotation.paragraphs?.speaker ?? "Speaker"}</span>
+                <span>{annotation.paragraphs?.startTime ?? ""}</span>
+              </div>
+              <p>{annotation.text}</p>
+              <div className="badge-row">
+                {annotation.codeIds.map((id) => {
+                  const code = codeMap.get(id);
+                  return (
+                    <CodeBadge key={id} tone={code ? codeToneMap.get(code.codeGroupId) : "gray"}>
+                      {code?.name ?? id}
                     </CodeBadge>
-                  </TooltipTrigger>
-                  <TooltipContent>{Math.round(item.score * 100)}% · {item.reason}</TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-            <TextMuted>New code candidates</TextMuted>
-            <div className="badge-row">
-              {keywords.isPending && <CodeBadge tone="gray">Extracting keywords...</CodeBadge>}
-              {(keywords.data?.keywords ?? []).map((keyword) => (
-                <CodeBadge key={keyword} tone="green" onClick={() => createCode.mutate(keyword)}>
-                  + {keyword}
-                </CodeBadge>
-              ))}
-            </div>
+                  );
+                })}
+              </div>
+            </article>
+          ))}
+          {!activeAnnotations.length && (
+            <EmptyState description="No coded content yet. Select text in the transcript and save codes from the floating picker." />
+          )}
+        </div>
+      </PanelCard>
+      {selectedText && popoverPosition && (
+        <div
+          className={`coding-popover ${popoverPosition.placement === "above" ? "placement-above" : "placement-below"}`}
+          style={{ left: popoverPosition.left, top: popoverPosition.top }}
+        >
+          <div className="coding-popover-header">
+            <strong>Code selection</strong>
+            <Button size="icon-xs" variant="ghost" onClick={() => { setSelectedText(""); setSelectedCodeIds([]); setPopoverPosition(null); }}>
+              ×
+            </Button>
+          </div>
+          <p className="quote-preview">{selectedText}</p>
+          {recommendations.data?.degraded && <InlineAlert>AI provider is unavailable. Showing rule-based fallback recommendations.</InlineAlert>}
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("correct")}>
+              Correct text
+            </Button>
+            <Button size="sm" variant="outline" disabled={improveText.isPending} onClick={() => improveText.mutate("simplify")}>
+              Simplify
+            </Button>
+          </div>
+          {improveText.data && (
+            <InlineAlert>
+              <div className="flex flex-col gap-2">
+                <span>{improveText.data.text}</span>
+                <TextMuted>{improveText.data.reason}</TextMuted>
+                <Button size="sm" onClick={() => setSelectedText(improveText.data.text)}>Use this text</Button>
+              </div>
+            </InlineAlert>
+          )}
+          <TextMuted>Selected codes</TextMuted>
+          <div className="badge-row">
+            {selectedCodeIds.map((id) => (
+              <CodeBadge key={id} onClose={() => setSelectedCodeIds((ids) => ids.filter((item) => item !== id))}>
+                {codeMap.get(id)?.name ?? id}
+              </CodeBadge>
+            ))}
+          </div>
+          <TextMuted>Recommendations</TextMuted>
+          <div className="badge-row">
+            {recommendations.isPending && <CodeBadge tone="gray">Loading recommendations...</CodeBadge>}
+            {(recommendations.data?.recommendations ?? []).map((item) => (
+              <Tooltip key={item.id ?? item.label}>
+                <TooltipTrigger>
+                  <CodeBadge selected={selectedCodeIds.includes(item.id ?? "")} tone="gray" onClick={() => item.id && setSelectedCodeIds((ids) => (ids.includes(item.id!) ? ids.filter((id) => id !== item.id) : [...ids, item.id!]))}>
+                    {item.label}
+                  </CodeBadge>
+                </TooltipTrigger>
+                <TooltipContent>{Math.round(item.score * 100)}% · {item.reason}</TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+          <TextMuted>New code candidates</TextMuted>
+          <div className="badge-row">
+            {keywords.isPending && <CodeBadge tone="gray">Extracting keywords...</CodeBadge>}
+            {(keywords.data?.keywords ?? []).map((keyword) => (
+              <CodeBadge key={keyword} tone="green" onClick={() => createCode.mutate(keyword)}>
+                + {keyword}
+              </CodeBadge>
+            ))}
+          </div>
+          <div className="coding-popover-actions">
+            <Button variant="outline" onClick={() => { setSelectedText(""); setSelectedCodeIds([]); setPopoverPosition(null); }}>
+              Cancel
+            </Button>
             <Button disabled={!selectedParagraphId || !selectedCodeIds.length || saveAnnotation.isPending} onClick={() => saveAnnotation.mutate()}>
               Save annotation
             </Button>
           </div>
-        ) : (
-          <TextMuted>Select text in the transcript to get code recommendations.</TextMuted>
-        )}
-      </PanelCard>
+        </div>
+      )}
     </div>
   );
 }

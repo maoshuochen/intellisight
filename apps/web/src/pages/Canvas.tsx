@@ -99,7 +99,7 @@ export function Canvas() {
   if (!projectId) return <EmptyState description="Create or select a project first." />;
 
   return (
-    <div className="page split-page canvas-workspace">
+    <div className="page split-page canvas-page">
       <PanelCard title="Canvases" className="left-panel">
         <div className="flex flex-col gap-3">
           <Button disabled={createCanvas.isPending} onClick={() => createCanvas.mutate()}>

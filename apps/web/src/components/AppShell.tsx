@@ -1,12 +1,11 @@
-import { BookOpenIcon, FileTextIcon, Grid2X2Icon, HomeIcon, LightbulbIcon, MapIcon, PencilLineIcon, SettingsIcon, TagsIcon } from "lucide-react";
+import { BookOpenIcon, FileTextIcon, Grid2X2Icon, HomeIcon, LightbulbIcon, MapIcon, PencilLineIcon, SearchIcon, SettingsIcon, TagsIcon } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 
 const navItems = [
   { key: "/", label: "Home", icon: HomeIcon },
-  { key: "/workspace", label: "Analysis Workspace", icon: Grid2X2Icon },
-  { key: "/outlines", label: "Interview Prep", icon: BookOpenIcon },
+  { key: "/outlines", label: "Outlines", icon: BookOpenIcon },
   { key: "/interviews", label: "Interviews", icon: PencilLineIcon },
   { key: "/codes", label: "Codes", icon: TagsIcon },
   { key: "/highlights", label: "Highlights", icon: LightbulbIcon },
@@ -18,6 +17,8 @@ const navItems = [
 export function AppShell() {
   const location = useLocation();
   const selectedKey = navItems.find((item) => item.key !== "/" && location.pathname.startsWith(item.key))?.key ?? "/";
+  const activeItem = navItems.find((item) => item.key === selectedKey) ?? navItems[0]!;
+  const ActiveIcon = activeItem.icon;
 
   return (
     <div className="app-shell">
@@ -26,7 +27,6 @@ export function AppShell() {
           <Grid2X2Icon />
           <span className="brand-title">IntelliSight</span>
         </div>
-        <ProjectSwitcher />
         <nav className="nav-menu">
           {navItems.map((item) => (
             <Link key={item.key} to={item.key} className={cn("nav-link", selectedKey === item.key && "active")}>
@@ -36,9 +36,28 @@ export function AppShell() {
           ))}
         </nav>
       </aside>
-      <main className="app-content">
-        <Outlet />
-      </main>
+      <div className="app-main">
+        <header className="app-header">
+          <div className="app-header-title">
+            <ActiveIcon />
+            <span>Thesis</span>
+            <span className="app-header-separator">/</span>
+            <strong>{activeItem.label}</strong>
+          </div>
+          <div className="app-header-actions">
+            <div className="global-search" aria-hidden="true">
+              <SearchIcon />
+              <span>Search</span>
+            </div>
+            <div className="topbar-project">
+              <ProjectSwitcher />
+            </div>
+          </div>
+        </header>
+        <main className="app-content">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import { AuthGate } from "./components/AuthGate";
 import { LoadingBlock } from "./components/ui/app-kit";
 import { TooltipProvider } from "./components/ui/tooltip";
 
-const AnalysisWorkspace = lazy(() => import("./pages/AnalysisWorkspace").then((module) => ({ default: module.AnalysisWorkspace })));
 const Canvas = lazy(() => import("./pages/Canvas").then((module) => ({ default: module.Canvas })));
 const Codes = lazy(() => import("./pages/Codes").then((module) => ({ default: module.Codes })));
 const Highlights = lazy(() => import("./pages/Highlights").then((module) => ({ default: module.Highlights })));
@@ -27,7 +26,6 @@ const router = createBrowserRouter(
       element: <AppShell />,
       children: [
         { index: true, element: <Home /> },
-        { path: "workspace", element: <AnalysisWorkspace /> },
         { path: "outlines", element: <Outlines /> },
         { path: "interviews", element: <Interviews /> },
         { path: "codes", element: <Codes /> },

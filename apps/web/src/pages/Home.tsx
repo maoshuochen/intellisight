@@ -39,11 +39,11 @@ export function Home() {
   return (
     <div className="page">
       <PageTitle
-        title="Research workspace"
+        title="Research overview"
         description="A compact overview of interviews, codes, and saved evidence."
         action={
-          <Button render={<Link to="/workspace" />}>
-            Open Analysis Workspace
+          <Button render={<Link to="/interviews" />}>
+            Open Interviews
           </Button>
         }
       />
