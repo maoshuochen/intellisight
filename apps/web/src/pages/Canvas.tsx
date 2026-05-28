@@ -10,9 +10,10 @@ import {
   type Edge,
   type Node
 } from "@xyflow/react";
-import { GitBranchIcon, PlusIcon, SaveIcon } from "lucide-react";
+import { FileTextIcon, GitBranchIcon, PlusIcon, SaveIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import type { Annotation, CanvasClusterResponse, CanvasDocument } from "@intellisight/shared";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ export function Canvas() {
     queryFn: () => api.get<Annotation[]>(`/annotations?projectId=${projectId}`)
   });
   const activeCanvas = useMemo(() => canvases.data?.find((canvas) => canvas.id === (canvasId ?? canvases.data?.[0]?.id)), [canvasId, canvases.data]);
+  const themeNodeCount = nodes.filter((node) => (node.data as any)?.sourceType === "theme").length;
 
   useEffect(() => {
     if (!activeCanvas) return;
@@ -73,13 +75,25 @@ export function Canvas() {
   });
 
   function addAnnotationNode(annotation: Annotation) {
+    addAnnotationNodes([annotation]);
+  }
+
+  function addAnnotationNodes(items: Annotation[]) {
     setNodes((current) => [
       ...current,
-      {
-        id: `annotation-${annotation.id}-${Date.now()}`,
-        position: { x: 120 + current.length * 32, y: 120 + current.length * 24 },
-        data: { label: annotation.text }
-      }
+      ...items.map((annotation, index) => ({
+        id: `annotation-${annotation.id}-${Date.now()}-${index}`,
+        position: { x: 120 + ((current.length + index) % 3) * 260, y: 120 + Math.floor((current.length + index) / 3) * 140 },
+        data: {
+          label: annotation.text,
+          sourceType: "highlight",
+          annotationId: annotation.id,
+          sourceAnnotationIds: [annotation.id],
+          interviewName: annotation.interviewName,
+          participantName: annotation.participant?.displayName,
+          sampleGroup: annotation.participant?.sampleGroup
+        }
+      }))
     ]);
   }
 
@@ -91,9 +105,15 @@ export function Canvas() {
       ...themes.map(([theme, items], index) => ({
         id: `theme-${theme}-${Date.now()}-${index}`,
         position: { x: 520, y: 80 + index * 120 },
-        data: { label: `${theme} (${items.length})` }
+        data: { label: `${theme} (${items.length})`, sourceType: "theme", sourceAnnotationIds: items.map((item) => item.id.replace(/^annotation-/, "")), reportReady: true }
       }))
     ]);
+    toast.success("Theme nodes added. Save the canvas, then open Reports to use them.");
+  }
+
+  function addAllHighlights() {
+    const existingAnnotationIds = new Set(nodes.map((node) => String((node.data as any)?.annotationId ?? "")));
+    addAnnotationNodes((annotations.data ?? []).filter((annotation) => !existingAnnotationIds.has(annotation.id)));
   }
 
   if (!projectId) return <EmptyState description="Create or select a project first." />;
@@ -116,22 +136,36 @@ export function Canvas() {
             <SaveIcon data-icon="inline-start" />
             Save canvas
           </Button>
+          <Button variant="outline" disabled={!(annotations.data ?? []).length} onClick={addAllHighlights}>
+            <PlusIcon data-icon="inline-start" />
+            Add all highlights
+          </Button>
           <Button variant="outline" disabled={!nodes.length || clusterCanvas.isPending} onClick={() => clusterCanvas.mutate()}>
             <GitBranchIcon data-icon="inline-start" />
             Cluster nodes
           </Button>
+          <Button variant="outline" disabled={!themeNodeCount} render={themeNodeCount ? <Link to="/reports" /> : undefined}>
+            <FileTextIcon data-icon="inline-start" />
+            Themes feed reports
+          </Button>
+          {themeNodeCount > 0 && (
+            <InlineAlert>
+              {themeNodeCount} theme nodes can feed the report. Save the canvas before opening Reports so the draft uses the latest synthesis.
+            </InlineAlert>
+          )}
           {clusterCanvas.data && (
             <InlineAlert>
               <div className="flex flex-col gap-2">
-                <span>{clusterCanvas.data.degraded ? "Fallback clustering" : "AI clustering"} produced {Object.keys(clusterCanvas.data.groups).length} themes.</span>
+                <span>{clusterCanvas.data.degraded ? "Fallback clustering" : "AI clustering"} preview: {Object.keys(clusterCanvas.data.groups).length} themes. Accept to add theme nodes with source links.</span>
                   <div className="badge-row">
                     {Object.entries(clusterCanvas.data.groups).map(([theme, items]) => (
                       <CodeBadge key={theme}>{theme}: {items.length}</CodeBadge>
                     ))}
                   </div>
-                  <Button size="sm" onClick={addThemeNodes}>
-                    Add theme nodes
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={addThemeNodes}>Accept themes</Button>
+                    <Button size="sm" variant="outline" onClick={() => clusterCanvas.reset()}>Discard</Button>
+                  </div>
               </div>
             </InlineAlert>
           )}
@@ -140,10 +174,13 @@ export function Canvas() {
             {(annotations.data ?? []).map((item) => (
               <button key={item.id} type="button" className="list-row clickable-row" onClick={() => addAnnotationNode(item)}>
                 <strong>{item.text}</strong>
-                <TextMuted>{item.codeIds.length} codes</TextMuted>
+                <TextMuted>{[item.interviewName, item.participant?.displayName, item.participant?.sampleGroup].filter(Boolean).join(" · ") || `${item.codeIds.length} codes`}</TextMuted>
+                <div className="badge-row">
+                  <CodeBadge tone="gray">{item.codeIds.length} codes</CodeBadge>
+                </div>
               </button>
             ))}
-            {!(annotations.data ?? []).length && <EmptyState description="No highlights yet. Code transcript quotes first, then add them to canvas." />}
+            {!(annotations.data ?? []).length && <EmptyState description="No highlights yet. Code transcript quotes first, then add them to canvas for synthesis." />}
           </div>
         </div>
       </PanelCard>

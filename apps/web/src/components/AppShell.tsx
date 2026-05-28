@@ -1,4 +1,4 @@
-import { BookOpenIcon, FileTextIcon, Grid2X2Icon, HomeIcon, LightbulbIcon, MapIcon, PencilLineIcon, SearchIcon, SettingsIcon, TagsIcon } from "lucide-react";
+import { BookOpenIcon, FileTextIcon, Grid2X2Icon, HomeIcon, LightbulbIcon, MapIcon, PencilLineIcon, SettingsIcon, TagsIcon } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { ProjectSwitcher } from "./ProjectSwitcher";
@@ -45,10 +45,6 @@ export function AppShell() {
             <strong>{activeItem.label}</strong>
           </div>
           <div className="app-header-actions">
-            <div className="global-search" aria-hidden="true">
-              <SearchIcon />
-              <span>Search</span>
-            </div>
             <div className="topbar-project">
               <ProjectSwitcher />
             </div>

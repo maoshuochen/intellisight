@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { createCanvasSchema, createOutlineSchema, createReportSchema, updateCanvasSchema, updateOutlineQuestionsSchema, uuidSchema } from "@intellisight/shared";
+import { createCanvasSchema, createOutlineSchema, createReportSchema, updateCanvasSchema, updateOutlineQuestionsSchema, updateReportSchema, uuidSchema } from "@intellisight/shared";
 import { assertProjectRole } from "../services/projects.js";
 import { toCamel } from "../utils/case.js";
 
@@ -159,5 +159,25 @@ export const analysisRoutes: FastifyPluginAsync = async (app) => {
       .single();
     if (error) throw error;
     return reply.code(201).send(toCamel(data));
+  });
+
+  app.patch("/reports/:id", async (request) => {
+    const reportId = uuidSchema.parse((request.params as { id: string }).id);
+    const body = updateReportSchema.parse(request.body);
+    const { data: existing, error: existingError } = await app.supabase
+      .from("reports")
+      .select("project_id")
+      .eq("id", reportId)
+      .single();
+    if (existingError) throw existingError;
+    await assertProjectRole(app, request.user.id, existing.project_id, ["owner", "editor"]);
+    const { data, error } = await app.supabase
+      .from("reports")
+      .update(body)
+      .eq("id", reportId)
+      .select("*")
+      .single();
+    if (error) throw error;
+    return toCamel(data);
   });
 };

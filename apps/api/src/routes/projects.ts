@@ -54,6 +54,19 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       edges: []
     });
 
+    const { data: participant } = await app.supabase
+      .from("participants")
+      .insert({
+        project_id: project.id,
+        display_name: "Participant A",
+        role: "Research participant",
+        sample_group: "Demo sample",
+        tags: ["demo"],
+        notes: null
+      })
+      .select("*")
+      .single();
+
     const { data: interview } = await app.supabase
       .from("interviews")
       .insert({
@@ -62,6 +75,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
         sample: "Usability study",
         owner: request.user.email ?? "Researcher",
         length: "12:30",
+        participant_id: participant?.id ?? null,
         participant_name: "Participant A"
       })
       .select("*")

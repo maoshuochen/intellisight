@@ -14,7 +14,21 @@ type DemoInterview = {
   sample: string | null;
   owner: string | null;
   length: string | null;
+  participantId?: string | null;
   participantName: string | null;
+  participant?: DemoParticipant | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type DemoParticipant = {
+  id: string;
+  projectId: string;
+  displayName: string;
+  role: string | null;
+  sampleGroup: string | null;
+  tags: string[];
+  notes: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +67,10 @@ type DemoAnnotation = {
   id: string;
   projectId: string;
   paragraphId: string;
+  interviewId?: string;
+  interviewName?: string;
+  paragraphSortOrder?: number;
+  participant?: Pick<DemoParticipant, "id" | "displayName" | "role" | "sampleGroup" | "tags"> | null;
   text: string;
   startOffset: number;
   endOffset: number;
@@ -91,6 +109,7 @@ type DemoOutline = {
 
 type DemoState = {
   projects: DemoProject[];
+  participants: DemoParticipant[];
   interviews: DemoInterview[];
   paragraphs: DemoParagraph[];
   codeGroups: DemoCodeGroup[];
@@ -110,7 +129,7 @@ type DemoState = {
   };
 };
 
-const storageKey = "intellisight.demoState.v1";
+const storageKey = "intellisight.demoState.v4";
 
 export async function demoRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   await new Promise((resolve) => window.setTimeout(resolve, 80));
@@ -130,7 +149,7 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   }
 
   if (url.pathname === "/interviews" && method === "GET") {
-    return state.interviews.filter((item) => item.projectId === url.searchParams.get("projectId")) as T;
+    return state.interviews.filter((item) => item.projectId === url.searchParams.get("projectId")).map((item) => enrichInterview(state, item)) as T;
   }
   if (url.pathname === "/interviews" && method === "POST") {
     const interview = createInterview(state, body, now);
@@ -142,6 +161,22 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
     const interview = createInterview(state, { ...body, sample: "Imported transcript", paragraphs }, now);
     saveState(state);
     return { ...interview, paragraphCount: paragraphs.length } as T;
+  }
+
+  if (url.pathname === "/participants" && method === "GET") {
+    return state.participants.filter((item) => item.projectId === url.searchParams.get("projectId")).sort((a, b) => a.displayName.localeCompare(b.displayName)) as T;
+  }
+  if (url.pathname === "/participants" && method === "POST") {
+    const participant = createParticipant(state, body, now);
+    saveState(state);
+    return participant as T;
+  }
+  const participantMatch = url.pathname.match(/^\/participants\/(.+)$/);
+  if (participantMatch && method === "PATCH") {
+    const participant = mustFind(state.participants, matchId(participantMatch));
+    Object.assign(participant, body, { updatedAt: now });
+    saveState(state);
+    return participant as T;
   }
   const paragraphMatch = url.pathname.match(/^\/interviews\/(.+)\/paragraphs$/);
   if (paragraphMatch && method === "GET") {
@@ -193,13 +228,25 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   if (url.pathname === "/annotations" && method === "GET") {
     return state.annotations
       .filter((item) => item.projectId === url.searchParams.get("projectId"))
-      .map((annotation) => ({ ...annotation, paragraphs: paragraphSummary(state, annotation.paragraphId) })) as T;
+      .map((annotation) => enrichAnnotation(state, annotation)) as T;
   }
   if (url.pathname === "/annotations" && method === "POST") {
     const annotation: DemoAnnotation = { id: id(), projectId: body.projectId, paragraphId: body.paragraphId, text: body.text, startOffset: body.startOffset, endOffset: body.endOffset, comment: body.comment ?? null, codeIds: body.codeIds, createdAt: now, updatedAt: now };
     state.annotations.unshift(annotation);
     saveState(state);
-    return annotation as T;
+    return enrichAnnotation(state, annotation) as T;
+  }
+  const annotationMatch = url.pathname.match(/^\/annotations\/(.+)$/);
+  if (annotationMatch && method === "PATCH") {
+    const annotation = mustFind(state.annotations, matchId(annotationMatch));
+    Object.assign(annotation, body, { updatedAt: now });
+    saveState(state);
+    return enrichAnnotation(state, annotation) as T;
+  }
+  if (annotationMatch && method === "DELETE") {
+    state.annotations = state.annotations.filter((item) => item.id !== annotationMatch[1]);
+    saveState(state);
+    return undefined as T;
   }
 
   if (url.pathname === "/canvases" && method === "GET") {
@@ -223,6 +270,13 @@ export async function demoRequest<T>(path: string, init: RequestInit = {}): Prom
   if (url.pathname === "/reports" && method === "POST") {
     const report: DemoReport = { id: id(), projectId: body.projectId, title: body.title, body: body.body, createdAt: now, updatedAt: now };
     state.reports.unshift(report);
+    saveState(state);
+    return report as T;
+  }
+  const reportMatch = url.pathname.match(/^\/reports\/(.+)$/);
+  if (reportMatch && method === "PATCH") {
+    const report = mustFind(state.reports, matchId(reportMatch));
+    Object.assign(report, body, { updatedAt: now });
     saveState(state);
     return report as T;
   }
@@ -286,20 +340,32 @@ function saveState(state: DemoState) {
 function seedState(): DemoState {
   const now = new Date().toISOString();
   const projectId = id();
+  const participantId = id();
   const interviewId = id();
+  const paragraphOneId = id();
+  const paragraphTwoId = id();
+  const paragraphThreeId = id();
   const needGroup: DemoCodeGroup = { id: id(), projectId, name: "Need", color: "blue", sortOrder: 1 };
   const painGroup: DemoCodeGroup = { id: id(), projectId, name: "Pain Point", color: "orange", sortOrder: 2 };
   const opportunityGroup: DemoCodeGroup = { id: id(), projectId, name: "Opportunity", color: "purple", sortOrder: 3 };
   const needId = id();
   const painId = id();
   const opportunityId = id();
+  const annotationOneId = id();
+  const annotationTwoId = id();
+  const paragraphOneText = "How do you usually prepare meals during a busy weekday?";
+  const paragraphTwoText = "Storage is always the hard part. We buy ingredients locally, but the kitchen is small and everything competes for space.";
+  const paragraphThreeText = "Fast cooking matters more than fancy tools. If something saves ten minutes and is easy to clean, I use it every week.";
+  const annotationOneText = "the kitchen is small and everything competes for space";
+  const annotationTwoText = "saves ten minutes and is easy to clean";
   return {
     projects: [{ id: projectId, name: "Demo Research Project", description: null, createdBy: "demo-user", createdAt: now, updatedAt: now }],
-    interviews: [{ id: interviewId, projectId, name: "Kitchen workflow interview", sample: "Demo transcript", owner: "demo", length: "08:20", participantName: "Participant A", createdAt: now, updatedAt: now }],
+    participants: [{ id: participantId, projectId, displayName: "Participant A", role: "Home cook", sampleGroup: "Urban apartment", tags: ["weekday-cooking"], notes: "Demo participant profile.", createdAt: now, updatedAt: now }],
+    interviews: [{ id: interviewId, projectId, name: "Kitchen workflow interview", sample: "Demo transcript", owner: "demo", length: "08:20", participantId, participantName: "Participant A", createdAt: now, updatedAt: now }],
     paragraphs: [
-      { id: id(), projectId, interviewId, speaker: "Researcher", startTime: "00:00", endTime: null, sortOrder: 1, text: "How do you usually prepare meals during a busy weekday?" },
-      { id: id(), projectId, interviewId, speaker: "Participant", startTime: "00:18", endTime: null, sortOrder: 2, text: "Storage is always the hard part. We buy ingredients locally, but the kitchen is small and everything competes for space." },
-      { id: id(), projectId, interviewId, speaker: "Participant", startTime: "00:52", endTime: null, sortOrder: 3, text: "Fast cooking matters more than fancy tools. If something saves ten minutes and is easy to clean, I use it every week." }
+      { id: paragraphOneId, projectId, interviewId, speaker: "Researcher", startTime: "00:00", endTime: null, sortOrder: 1, text: paragraphOneText },
+      { id: paragraphTwoId, projectId, interviewId, speaker: "Participant", startTime: "00:18", endTime: null, sortOrder: 2, text: paragraphTwoText },
+      { id: paragraphThreeId, projectId, interviewId, speaker: "Participant", startTime: "00:52", endTime: null, sortOrder: 3, text: paragraphThreeText }
     ],
     codeGroups: [needGroup, painGroup, opportunityGroup],
     codes: [
@@ -307,9 +373,27 @@ function seedState(): DemoState {
       { id: painId, projectId, codeGroupId: painGroup.id, name: "Cleanup burden", definition: "Tools are avoided when cleanup costs outweigh time savings.", owner: "demo", usage: 0, createdAt: now },
       { id: opportunityId, projectId, codeGroupId: opportunityGroup.id, name: "Fast weekday cooking", definition: "Products that save time without extra complexity feel valuable.", owner: "demo", usage: 0, createdAt: now }
     ],
-    annotations: [],
-    canvases: [{ id: id(), projectId, name: "Theme analysis", nodes: [], edges: [], viewport: null, updatedAt: now }],
-    reports: [],
+    annotations: [
+      { id: annotationOneId, projectId, paragraphId: paragraphTwoId, text: annotationOneText, startOffset: paragraphTwoText.indexOf(annotationOneText), endOffset: paragraphTwoText.indexOf(annotationOneText) + annotationOneText.length, comment: "Storage pressure is a recurring context constraint.", codeIds: [needId], createdAt: now, updatedAt: now },
+      { id: annotationTwoId, projectId, paragraphId: paragraphThreeId, text: annotationTwoText, startOffset: paragraphThreeText.indexOf(annotationTwoText), endOffset: paragraphThreeText.indexOf(annotationTwoText) + annotationTwoText.length, comment: "Speed only matters when cleanup stays low.", codeIds: [opportunityId, painId], createdAt: now, updatedAt: now }
+    ],
+    canvases: [{
+      id: id(),
+      projectId,
+      name: "Theme analysis",
+      nodes: [
+        { id: `annotation-${annotationOneId}`, type: "default", position: { x: 120, y: 120 }, data: { label: "Small kitchens create storage pressure", sourceType: "highlight", annotationId: annotationOneId } },
+        { id: `annotation-${annotationTwoId}`, type: "default", position: { x: 120, y: 260 }, data: { label: "Time savings must not add cleanup burden", sourceType: "highlight", annotationId: annotationTwoId } },
+        { id: "theme-weekday-friction", type: "default", position: { x: 520, y: 180 }, data: { label: "Weekday cooking friction", sourceType: "theme", sourceAnnotationIds: [annotationOneId, annotationTwoId] } }
+      ],
+      edges: [
+        { id: "edge-storage-theme", source: `annotation-${annotationOneId}`, target: "theme-weekday-friction", type: "smoothstep" },
+        { id: "edge-speed-theme", source: `annotation-${annotationTwoId}`, target: "theme-weekday-friction", type: "smoothstep" }
+      ],
+      viewport: null,
+      updatedAt: now
+    }],
+    reports: [{ id: id(), projectId, title: "Kitchen workflow synthesis", body: "# Kitchen workflow synthesis\n\nProject: Demo Research Project\n\n## Executive Themes\n\n### Weekday cooking friction\n\n- \"the kitchen is small and everything competes for space\"\n  - Source: Kitchen workflow interview / Participant A / Participant 00:18\n- \"saves ten minutes and is easy to clean\"\n  - Source: Kitchen workflow interview / Participant A / Participant 00:52\n\n## Code Summary\n\n- Small kitchen storage: 1 highlights\n- Cleanup burden: 1 highlights\n- Fast weekday cooking: 1 highlights\n", createdAt: now, updatedAt: now }],
     outlines: [],
     aiStatus: { enabled: true, provider: "demo-rules", model: null, apiBase: "demo://local", configured: false, apiKeyConfigured: false, source: "runtime" }
   };
@@ -324,10 +408,52 @@ function addDefaultCodeGroups(state: DemoState, projectId: string) {
 }
 
 function createInterview(state: DemoState, body: any, now: string) {
-  const interview: DemoInterview = { id: id(), projectId: body.projectId, name: body.name, sample: body.sample ?? null, owner: "demo", length: body.length ?? null, participantName: body.participantName ?? null, createdAt: now, updatedAt: now };
+  const participant = resolveParticipant(state, body, now);
+  const interview: DemoInterview = {
+    id: id(),
+    projectId: body.projectId,
+    name: body.name,
+    sample: body.sample ?? null,
+    owner: "demo",
+    length: body.length ?? null,
+    participantId: participant?.id ?? null,
+    participantName: participant?.displayName ?? body.participantName ?? null,
+    createdAt: now,
+    updatedAt: now
+  };
   state.interviews.unshift(interview);
   state.paragraphs.push(...body.paragraphs.map((paragraph: any, index: number) => ({ id: id(), projectId: body.projectId, interviewId: interview.id, text: paragraph.text, speaker: paragraph.speaker ?? null, startTime: paragraph.startTime ?? null, endTime: paragraph.endTime ?? null, sortOrder: index + 1 })));
-  return interview;
+  return enrichInterview(state, interview);
+}
+
+function createParticipant(state: DemoState, body: any, now: string): DemoParticipant {
+  const participant: DemoParticipant = {
+    id: id(),
+    projectId: body.projectId,
+    displayName: body.displayName.trim(),
+    role: body.role?.trim() || null,
+    sampleGroup: body.sampleGroup?.trim() || null,
+    tags: body.tags ?? [],
+    notes: body.notes?.trim() || null,
+    createdAt: now,
+    updatedAt: now
+  };
+  state.participants.push(participant);
+  return participant;
+}
+
+function resolveParticipant(state: DemoState, body: any, now: string) {
+  if (body.participantId) return state.participants.find((item) => item.id === body.participantId && item.projectId === body.projectId) ?? null;
+  const displayName = body.participantName?.trim();
+  if (!displayName) return null;
+  const existing = state.participants.find((item) => item.projectId === body.projectId && item.displayName.toLowerCase() === displayName.toLowerCase());
+  if (existing) return existing;
+  return createParticipant(state, { projectId: body.projectId, displayName, role: body.participantRole, sampleGroup: body.sampleGroup, tags: [], notes: null }, now);
+}
+
+function enrichInterview(state: DemoState, interview: DemoInterview): DemoInterview {
+  const participant = state.participants.find((item) => item.id === interview.participantId) ?? null;
+  return { ...interview, participant };
 }
 
 function parseTranscript(input: string) {
@@ -340,6 +466,24 @@ function parseTranscript(input: string) {
 function paragraphSummary(state: DemoState, paragraphId: string) {
   const paragraph = state.paragraphs.find((item) => item.id === paragraphId);
   return paragraph ? { speaker: paragraph.speaker, startTime: paragraph.startTime, endTime: paragraph.endTime, text: paragraph.text } : undefined;
+}
+
+function enrichAnnotation(state: DemoState, annotation: DemoAnnotation) {
+  const paragraph = state.paragraphs.find((item) => item.id === annotation.paragraphId);
+  const interview = paragraph ? state.interviews.find((item) => item.id === paragraph.interviewId) : undefined;
+  const participant = interview?.participantId ? state.participants.find((item) => item.id === interview.participantId) : undefined;
+  return {
+    ...annotation,
+    interviewId: interview?.id,
+    interviewName: interview?.name,
+    paragraphSortOrder: paragraph?.sortOrder,
+    participant: participant
+      ? { id: participant.id, displayName: participant.displayName, role: participant.role, sampleGroup: participant.sampleGroup, tags: participant.tags }
+      : interview?.participantName
+        ? { id: interview.participantId ?? undefined, displayName: interview.participantName, role: null, sampleGroup: null, tags: [] }
+        : null,
+    paragraphs: paragraphSummary(state, annotation.paragraphId)
+  };
 }
 
 function usage(state: DemoState, codeId: string) {

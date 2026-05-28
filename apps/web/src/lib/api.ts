@@ -16,10 +16,23 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   });
   if (!response.ok) {
     const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new Error(payload?.error?.message ?? `Request failed: ${response.status} ${response.statusText}`);
+    throw new Error(formatApiError(response.status, response.statusText, payload?.error?.message));
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+function formatApiError(status: number, statusText: string, message?: string) {
+  const raw = message ?? "";
+  const lower = raw.toLowerCase();
+  if (status === 401) return "Your session has expired. Sign in again to continue.";
+  if (status === 403) return "You do not have permission to make this change in the selected project.";
+  if (status === 404) return "The requested project item was not found. Refresh and try again.";
+  if (status === 500 && (lower.includes("relation") || lower.includes("column") || lower.includes("schema"))) {
+    return "The database schema is out of date. Apply the latest Supabase migrations, then refresh this page.";
+  }
+  if (status === 500) return raw && raw !== "Internal Server Error" ? raw : "The server hit an unexpected error. Check the API logs or database migration status.";
+  return raw || `Request failed: ${status} ${statusText}`;
 }
 
 export const api = {

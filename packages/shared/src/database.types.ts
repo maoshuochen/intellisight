@@ -82,13 +82,14 @@ export type Database = {
         { code_group_id: string; created_at?: string; id?: string; name: string; owner?: string | null; project_id: string; updated_at?: string }
       >;
       interviews: Table<
-        Timestamped & { id: string; length: string | null; name: string; owner: string | null; participant_name: string | null; project_id: string; sample: string | null },
+        Timestamped & { id: string; length: string | null; name: string; owner: string | null; participant_id: string | null; participant_name: string | null; project_id: string; sample: string | null },
         {
           created_at?: string;
           id?: string;
           length?: string | null;
           name: string;
           owner?: string | null;
+          participant_id?: string | null;
           participant_name?: string | null;
           project_id: string;
           sample?: string | null;
@@ -115,6 +116,28 @@ export type Database = {
           speaker?: string | null;
           start_time?: string | null;
           text: string;
+          updated_at?: string;
+        }
+      >;
+      participants: Table<
+        Timestamped & {
+          display_name: string;
+          id: string;
+          notes: string | null;
+          project_id: string;
+          role: string | null;
+          sample_group: string | null;
+          tags: string[];
+        },
+        {
+          created_at?: string;
+          display_name: string;
+          id?: string;
+          notes?: string | null;
+          project_id: string;
+          role?: string | null;
+          sample_group?: string | null;
+          tags?: string[];
           updated_at?: string;
         }
       >;

@@ -64,7 +64,13 @@ export function Settings() {
       <Card>
         <CardContent className="flex flex-col gap-6">
           {aiStatus.data && !aiStatus.data.configured && (
-            <InlineAlert>AI API key is not configured. IntelliSight will use rule-based fallback recommendations.</InlineAlert>
+            <InlineAlert>AI API key is not configured. IntelliSight will use local fallback rules for recommendations and clustering.</InlineAlert>
+          )}
+          {aiStatus.data && (
+            <InlineAlert>
+              {projectId ? "Project-level AI settings are active for the selected workspace." : "Global runtime AI settings are shown because no project is selected."}{" "}
+              {aiStatus.data.configured ? `Requests will use ${aiStatus.data.model ?? "the configured model"}.` : "Fallback mode keeps coding and clustering available without external AI."}
+            </InlineAlert>
           )}
           <div className="settings-grid">
             <SettingItem label="API base URL" value={env.apiBaseUrl} />
@@ -77,6 +83,11 @@ export function Settings() {
             <SettingItem label="AI API key" value={aiStatus.data?.apiKeyConfigured ? "Configured" : "Missing"} />
             <SettingItem label="AI config source" value={aiStatus.data?.source ?? "Loading"} />
           </div>
+          {aiStatus.data && !aiStatus.data.configured && (
+            <InlineAlert>
+              Fallback mode affects code recommendations, keyword extraction, canvas clustering, and text memo suggestions. Original quotes, coding, highlights, canvas editing, and reports still work.
+            </InlineAlert>
+          )}
           <Card className="settings-section">
             <CardHeader>
               <CardTitle>AI Provider</CardTitle>

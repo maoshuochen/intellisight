@@ -37,7 +37,7 @@ export function ProjectSwitcher() {
   const projects = projectsQuery.data ?? [];
 
   useEffect(() => {
-    if (!projectId && projects[0]) setProjectId(projects[0].id);
+    if (projects[0] && (!projectId || !projects.some((project) => project.id === projectId))) setProjectId(projects[0].id);
   }, [projectId, projects, setProjectId]);
 
   if (projectsQuery.isLoading) return <Skeleton className="project-spin h-8" />;

@@ -23,11 +23,36 @@ export const interviewSchema = z.object({
   sample: z.string().nullable(),
   owner: z.string().nullable(),
   length: z.string().nullable(),
+  participantId: uuidSchema.nullable().optional(),
   participantName: z.string().nullable(),
+  participant: z
+    .object({
+      id: uuidSchema,
+      displayName: z.string(),
+      role: z.string().nullable(),
+      sampleGroup: z.string().nullable(),
+      tags: z.array(z.string()).default([]),
+      notes: z.string().nullable().optional()
+    })
+    .nullable()
+    .optional(),
   createdAt: z.string(),
   updatedAt: z.string()
 });
 export type Interview = z.infer<typeof interviewSchema>;
+
+export const participantSchema = z.object({
+  id: uuidSchema,
+  projectId: uuidSchema,
+  displayName: z.string(),
+  role: z.string().nullable(),
+  sampleGroup: z.string().nullable(),
+  tags: z.array(z.string()).default([]),
+  notes: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+export type Participant = z.infer<typeof participantSchema>;
 
 export const paragraphSchema = z.object({
   id: uuidSchema,
@@ -66,6 +91,19 @@ export const annotationSchema = z.object({
   id: uuidSchema,
   projectId: uuidSchema,
   paragraphId: uuidSchema,
+  interviewId: uuidSchema.optional(),
+  interviewName: z.string().optional(),
+  paragraphSortOrder: z.number().optional(),
+  participant: z
+    .object({
+      id: uuidSchema.optional(),
+      displayName: z.string().nullable().optional(),
+      role: z.string().nullable().optional(),
+      sampleGroup: z.string().nullable().optional(),
+      tags: z.array(z.string()).optional()
+    })
+    .nullable()
+    .optional(),
   text: z.string(),
   startOffset: z.number(),
   endOffset: z.number(),
@@ -146,6 +184,23 @@ export const createCodeGroupSchema = z.object({
   color: z.string().min(1).default("blue")
 });
 
+export const createParticipantSchema = z.object({
+  projectId: uuidSchema,
+  displayName: z.string().min(1),
+  role: z.string().optional(),
+  sampleGroup: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  notes: z.string().optional()
+});
+
+export const updateParticipantSchema = z.object({
+  displayName: z.string().min(1).optional(),
+  role: z.string().nullable().optional(),
+  sampleGroup: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+  notes: z.string().nullable().optional()
+});
+
 export const updateCodeGroupSchema = z.object({
   name: z.string().min(1).optional(),
   color: z.string().min(1).optional(),
@@ -164,7 +219,10 @@ export const createInterviewSchema = z.object({
   sample: z.string().optional(),
   owner: z.string().optional(),
   length: z.string().optional(),
+  participantId: uuidSchema.optional(),
   participantName: z.string().optional(),
+  participantRole: z.string().optional(),
+  sampleGroup: z.string().optional(),
   paragraphs: z
     .array(
       z.object({
@@ -181,7 +239,10 @@ export const importTranscriptSchema = z.object({
   projectId: uuidSchema,
   name: z.string().min(1),
   sample: z.string().optional(),
+  participantId: uuidSchema.optional(),
   participantName: z.string().optional(),
+  participantRole: z.string().optional(),
+  sampleGroup: z.string().optional(),
   transcript: z.string().min(1)
 });
 
@@ -193,6 +254,14 @@ export const createAnnotationSchema = z.object({
   endOffset: z.number().int().min(0),
   comment: z.string().optional(),
   codeIds: z.array(uuidSchema).min(1)
+});
+
+export const updateAnnotationSchema = z.object({
+  text: z.string().min(1).optional(),
+  startOffset: z.number().int().min(0).optional(),
+  endOffset: z.number().int().min(0).optional(),
+  comment: z.string().nullable().optional(),
+  codeIds: z.array(uuidSchema).min(1).optional()
 });
 
 export const createOutlineSchema = z.object({
@@ -227,6 +296,11 @@ export const createReportSchema = z.object({
   projectId: uuidSchema,
   title: z.string().min(1),
   body: z.string().default("")
+});
+
+export const updateReportSchema = z.object({
+  title: z.string().min(1).optional(),
+  body: z.string().optional()
 });
 
 export const recommendCodesRequestSchema = z.object({

@@ -1,11 +1,14 @@
 import { ArrowLeftIcon, ArrowRightIcon, EditIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import type { Code, CodeGroup } from "@intellisight/shared";
+import type { Annotation, Code, CodeGroup } from "@intellisight/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { CodeBadge, ColorSwatchPicker, EmptyState, OptionSelect, PageTitle, TextMuted } from "@/components/ui/app-kit";
 import { api } from "../lib/api";
 import { useAppStore } from "../lib/store";
@@ -20,6 +23,7 @@ export function Codes() {
   const [renamingCodeId, setRenamingCodeId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [definitionValue, setDefinitionValue] = useState("");
+  const [selectedEvidenceCodeId, setSelectedEvidenceCodeId] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const enabled = Boolean(projectId);
 
@@ -32,6 +36,11 @@ export function Codes() {
     queryKey: ["codes", projectId],
     enabled,
     queryFn: () => api.get<Code[]>(`/codes?projectId=${projectId}`)
+  });
+  const annotations = useQuery({
+    queryKey: ["annotations", projectId],
+    enabled,
+    queryFn: () => api.get<Array<Annotation & { interviewName?: string; paragraphs?: { speaker?: string | null; startTime?: string | null; text?: string } }>>(`/annotations?projectId=${projectId}`)
   });
 
   const invalidate = () => {
@@ -91,6 +100,11 @@ export function Codes() {
     for (const code of codes.data ?? []) map.get(code.codeGroupId)?.push(code);
     return map;
   }, [codes.data, groups.data]);
+  const selectedEvidenceCode = codes.data?.find((code) => code.id === selectedEvidenceCodeId) ?? codes.data?.[0];
+  const selectedEvidence = useMemo(
+    () => (annotations.data ?? []).filter((annotation) => selectedEvidenceCode?.id && annotation.codeIds.includes(selectedEvidenceCode.id)),
+    [annotations.data, selectedEvidenceCode?.id]
+  );
 
   useEffect(() => {
     if (!groupId && groups.data?.[0]) setGroupId(groups.data[0].id);
@@ -101,6 +115,7 @@ export function Codes() {
   return (
     <div className="page">
       <PageTitle title="Codes" description="Manage the project codebook and move codes between groups." />
+      <div className="code-workspace">
       <Card>
         <CardContent>
         <div className="toolbar">
@@ -159,10 +174,19 @@ export function Codes() {
                       )}
                       <div className="code-actions">
                         <CodeBadge tone="gray">{code.usage}</CodeBadge>
-                        <Button size="icon-xs" variant="ghost" disabled={!previousGroup} onClick={() => previousGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: previousGroup.id } })}><ArrowLeftIcon /></Button>
-                        <Button size="icon-xs" variant="ghost" disabled={!nextGroup} onClick={() => nextGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: nextGroup.id } })}><ArrowRightIcon /></Button>
-                        <Button size="icon-xs" variant="ghost" onClick={() => { setRenamingCodeId(code.id); setRenameValue(code.name); setDefinitionValue(code.definition ?? ""); }}><EditIcon /></Button>
-                        <Button size="icon-xs" variant="destructive" onClick={() => deleteCode.mutate(code.id)}><TrashIcon /></Button>
+                        <IconButtonTip label={`Move ${code.name} to previous group`}>
+                          <Button aria-label={`Move ${code.name} to previous group`} size="icon-xs" variant="ghost" disabled={!previousGroup} onClick={() => previousGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: previousGroup.id } })}><ArrowLeftIcon /></Button>
+                        </IconButtonTip>
+                        <IconButtonTip label={`Move ${code.name} to next group`}>
+                          <Button aria-label={`Move ${code.name} to next group`} size="icon-xs" variant="ghost" disabled={!nextGroup} onClick={() => nextGroup && updateCode.mutate({ id: code.id, patch: { codeGroupId: nextGroup.id } })}><ArrowRightIcon /></Button>
+                        </IconButtonTip>
+                        <IconButtonTip label={`Edit ${code.name}`}>
+                          <Button aria-label={`Edit ${code.name}`} size="icon-xs" variant="ghost" onClick={() => { setRenamingCodeId(code.id); setRenameValue(code.name); setDefinitionValue(code.definition ?? ""); }}><EditIcon /></Button>
+                        </IconButtonTip>
+                        <Button size="icon-xs" variant="outline" onClick={() => setSelectedEvidenceCodeId(code.id)}>Evidence</Button>
+                        <IconButtonTip label={`Delete ${code.name}`}>
+                          <Button aria-label={`Delete ${code.name}`} size="icon-xs" variant="destructive" onClick={() => deleteCode.mutate(code.id)}><TrashIcon /></Button>
+                        </IconButtonTip>
                       </div>
                     </div>
                   ))}
@@ -174,6 +198,39 @@ export function Codes() {
         </div>
         </CardContent>
       </Card>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          <div>
+            <strong>{selectedEvidenceCode?.name ?? "Code evidence"}</strong>
+            <TextMuted>{selectedEvidence.length} saved highlights use this code.</TextMuted>
+          </div>
+          {selectedEvidenceCode && selectedEvidence.length > 0 && (
+            <Button variant="outline" size="sm" render={<Link to={`/highlights?codeId=${selectedEvidenceCode.id}`} />}>
+              View all in Highlights
+            </Button>
+          )}
+          <div className="list-stack">
+            {selectedEvidence.map((annotation) => (
+              <div key={annotation.id} className="list-row">
+                <strong>{annotation.text}</strong>
+                <TextMuted>{annotation.interviewName ?? "Interview"} · {annotation.paragraphs?.speaker ?? "Speaker"} {annotation.paragraphs?.startTime ?? ""}</TextMuted>
+                {annotation.comment && <TextMuted>{annotation.comment}</TextMuted>}
+              </div>
+            ))}
+            {!selectedEvidence.length && <EmptyState description="Select a code with saved highlights to review its supporting evidence." />}
+          </div>
+        </CardContent>
+      </Card>
+      </div>
     </div>
+  );
+}
+
+function IconButtonTip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
   );
 }
